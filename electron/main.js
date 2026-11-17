@@ -7,6 +7,7 @@ const account = require('./services/account');
 const bossKey = require('./bosskey');
 const moyu = require('./moyu');
 const chapterCache = require('./services/chaptercache');
+const updater = require('./services/updater');
 
 let mainWindow;
 
@@ -70,6 +71,7 @@ app.whenReady().then(() => {
   bossKey.register();
   moyu.setup({ getMainWindow: () => mainWindow, loadRoute });
   chapterCache.prune();
+  updater.checkForUpdates(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
