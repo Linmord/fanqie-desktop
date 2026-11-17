@@ -321,6 +321,8 @@ body {
   overflow-y: auto;
   display: flex;
   justify-content: center;
+  /* 章节流自己做滚动锚定，关掉浏览器自带的，避免两边一起调位置 */
+  overflow-anchor: none;
 }
 
 .reader-text {
@@ -351,12 +353,56 @@ body {
   margin-top: 0;
 }
 
+/* 章节流：章与章之间只留大段空白和下一章标题 */
+.reader-seg + .reader-seg {
+  margin-top: 120px;
+}
+
+.reader-seg-status {
+  min-height: 40vh;
+  padding-top: 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+}
+
+.reader-seg-status.error {
+  min-height: 0;
+  padding: 20px 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.reader-seg-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.reader-seg-actions button {
+  padding: 4px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reader-seg-actions button:first-child {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
 .reader-nav {
   position: fixed;
   bottom: 20px;
   left: 50%;
   z-index: 2;
   display: flex;
+  align-items: center;
   gap: 4px;
   padding: 4px;
   transform: translateX(-50%);
@@ -384,9 +430,97 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 
-.reader-nav button:hover {
+.reader-nav button:hover:not(:disabled) {
   background: var(--hover-bg);
   color: var(--text-primary);
+}
+
+.reader-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 全书进度条：拖动时浮出章节名，松手跳过去 */
+.reader-slider.ant-slider {
+  width: 220px;
+  margin: 0 10px;
+}
+
+/* ---------- 阅读页目录抽屉 ---------- */
+.toc-drawer .ant-drawer-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.toc-drawer.inset .ant-drawer-header {
+  padding-top: 40px;
+}
+
+.toc-title {
+  font-family: var(--font-serif);
+}
+
+.toc-count {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--text-secondary);
+}
+
+.toc-search {
+  padding: 12px 16px;
+}
+
+.toc-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.toc-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toc-item:hover {
+  background: var(--hover-bg);
+}
+
+.toc-item.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.toc-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-lock {
+  flex: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.toc-empty {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 /* 章内进度：常驻右下角，很淡，不抢正文 */
