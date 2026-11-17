@@ -321,14 +321,66 @@ body {
   overflow-y: auto;
   display: flex;
   justify-content: center;
+  /* 章节流自己做滚动锚定，关掉浏览器自带的，避免两边一起调位置 */
+  overflow-anchor: none;
 }
 
 .reader-text {
+  /* 不让 flex 拉伸成视口高度，否则正文溢出在外面，底部留白不生效，章末内容会被底栏挡住 */
+  align-self: flex-start;
   max-width: var(--reader-width, 720px);
   width: 100%;
   padding: 88px 32px 120px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* 章节流：章与章之间只留大段空白和下一章标题 */
+.reader-seg + .reader-seg {
+  margin-top: 120px;
+}
+
+.reader-chapter-title {
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+
+.reader-seg-status {
+  min-height: 40vh;
+  padding-top: 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+}
+
+.reader-seg-status.error {
+  min-height: 0;
+  padding: 20px 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.reader-seg-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.reader-seg-actions button {
+  padding: 4px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reader-seg-actions button:first-child {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
 }
 
 .reader-nav {
@@ -337,6 +389,7 @@ body {
   left: 50%;
   z-index: 2;
   display: flex;
+  align-items: center;
   gap: 4px;
   padding: 4px;
   transform: translateX(-50%);
@@ -364,9 +417,14 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 
-.reader-nav button:hover {
+.reader-nav button:hover:not(:disabled) {
   background: var(--hover-bg);
   color: var(--text-primary);
+}
+
+.reader-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* 章内进度：常驻右下角，很淡，不抢正文 */

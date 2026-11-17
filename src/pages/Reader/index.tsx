@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useReader } from '@/stores/reader';
+import { useReader, type Segment } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
+import { useAccount } from '@/stores/account';
 import { ConfigProvider, Popover } from 'antd';
 import { CommentOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
+import type { Chapter } from '@/types';
 import * as api from '@/services/api';
 import CommentDrawer from '@/components/CommentDrawer';
 import SettingsPanel from '@/components/Reader/SettingsPanel';
@@ -13,13 +15,85 @@ import { useTheme, antdConfig } from '@/stores/theme';
 // macOS 隐藏式标题栏的红绿灯压在阅读页左上角，工具栏要让开
 const isMac = navigator.userAgent.includes('Mac');
 
+type CommentPara = { chapterId: string; index: number; text: string; count: number };
+
+/** 反爬字体按章生效：把字体名换成带章节 id 的名字，避免相邻两章的同名字体互相覆盖 */
+function scopeFont(css: string, chapterId: string) {
+  const name = css.match(/font-family:\s*([^;,}]+)/)?.[1]?.trim();
+  if (!name) return null;
+  const family = `fq-font-${chapterId}`;
+  return { css: css.split(name).join(`"${family}"`), family };
+}
+
+/** 章节流里的一章。单独 memo，滚动时更新进度不会重渲染所有段落 */
+const SegmentView = memo(function SegmentView({ seg, fontStack, titleSize, loggedIn, onComment, onRetry, onLogin }: {
+  seg: Segment;
+  fontStack: string;
+  titleSize: number;
+  loggedIn: boolean;
+  onComment: (p: CommentPara) => void;
+  onRetry: (chapterId: string) => void;
+  onLogin: () => void;
+}) {
+  const { chapter, status, content, fontCss, paraIdx, commentStats } = seg;
+  const font = fontCss ? scopeFont(fontCss, chapter.id) : null;
+  return (
+    <section
+      className="reader-seg"
+      data-seg={chapter.id}
+      style={font ? { fontFamily: `"${font.family}", ${fontStack}` } : undefined}
+    >
+      {font && <style dangerouslySetInnerHTML={{ __html: font.css }} />}
+      <h2 className="reader-chapter-title reader-anchor" data-ch={chapter.id} data-para={0} style={{ fontSize: titleSize }}>
+        {chapter.title}
+      </h2>
+      {status === 'loading' && <div className="reader-seg-status">加载中…</div>}
+      {status === 'error' && (
+        <div className="reader-seg-status error">
+          <p>{seg.error || '本章加载失败'}</p>
+          <div className="reader-seg-actions">
+            <button onClick={() => onRetry(chapter.id)}>重试</button>
+            {!loggedIn && <button onClick={onLogin}>登录</button>}
+          </div>
+        </div>
+      )}
+      {status === 'ready' && content.split('\n').map((text, i) => {
+        const idx = paraIdx[i] ?? -1;
+        const count = commentStats[idx] || 0;
+        return (
+          <p key={i} className="reader-para reader-anchor" data-ch={chapter.id} data-para={i}>
+            {idx >= 0 ? (
+              <>
+                {text.slice(0, -1)}
+                {/* 气泡和最后一个字绑在一起，避免单独掉到下一行；没有段评的段落悬停才显示 */}
+                <span className="para-tail">
+                  {text.slice(-1)}
+                  <button
+                    className={`para-comment${count ? '' : ' empty'}`}
+                    title={count ? '查看段评' : '写段评'}
+                    onClick={() => onComment({ chapterId: chapter.id, index: idx, text, count })}
+                  >
+                    {count ? (count > 999 ? '999+' : count) : <CommentOutlined />}
+                  </button>
+                </span>
+              </>
+            ) : text}
+          </p>
+        );
+      })}
+    </section>
+  );
+});
+
 export default function Reader() {
   const { bookId, chapterId } = useParams<{ bookId: string; chapterId: string }>();
   const nav = useNavigate();
   const bodyRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const appDark = useTheme((s) => s.dark);
-  const [commentPara, setCommentPara] = useState<{ index: number; text: string; count: number } | null>(null);
+  const [commentPara, setCommentPara] = useState<CommentPara | null>(null);
+  // 段评抽屉关闭动画期间还要用到章节 id，单独留一份
+  const [commentCh, setCommentCh] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   // 沉浸模式：往下读时收起工具栏，往上滚或鼠标移到上下边缘时出现
   const [chromeVisible, setChromeVisible] = useState(true);
@@ -28,9 +102,11 @@ export default function Reader() {
   const lastTopRef = useRef(0);
 
   const {
-    currentChapter, content, fontCss, paraIdx, commentStats, loading, settings,
-    loadChapters, loadContent, nextChapter, prevChapter, loadSettings,
+    chapters, segments, currentId, settings,
+    loadChapters, openAt, retry, setCurrent, addCommentCount, loadSettings,
   } = useReader();
+  const loggedIn = useAccount((s) => !!s.user);
+  const openLogin = useAccount((s) => s.openLogin);
 
   const updateProgress = useBookshelf((s) => s.updateProgress);
   const savePosition = useBookshelf((s) => s.savePosition);
@@ -41,15 +117,19 @@ export default function Reader() {
     const item = useBookshelf.getState().items.find((i) => i.book.id === bookId);
     restoreRef.current = item?.lastReadParaIndex ? { chapterId: item.lastReadChapterId, para: item.lastReadParaIndex } : null;
   }
-  // 当前视口顶部是第几段；滚动停下后再写盘
-  const posRef = useRef(0);
+  // 章节流重置后要滚到的位置：等目标章正文到了再滚
+  const pendingRef = useRef<{ chapterId: string; para: number } | null>(null);
+  // 视口顶部的那一段及其屏幕位置。章节流在上方增删内容、或改字号后，靠它把位置拉回来
+  const anchorRef = useRef<{ el: HTMLElement; top: number } | null>(null);
+  // 视口顶部是哪章第几段；滚动停下后再写盘
+  const posRef = useRef<{ ch: string; para: number } | null>(null);
   const saveTimer = useRef<number>();
   const savePosRef = useRef(() => {});
   savePosRef.current = () => {
     window.clearTimeout(saveTimer.current);
     saveTimer.current = undefined;
-    const ch = useReader.getState().currentChapter;
-    if (bookId && ch) savePosition(bookId, ch.id, posRef.current);
+    const pos = posRef.current;
+    if (bookId && pos) savePosition(bookId, pos.ch, pos.para);
   };
 
   useEffect(() => {
@@ -61,78 +141,148 @@ export default function Reader() {
     return api.onFullScreenChange(setFullScreen);
   }, []);
 
-  const measure = () => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const max = body.scrollHeight - body.clientHeight;
-    setProgress(max > 0 ? Math.min(1, body.scrollTop / max) : 1);
-  };
+  /** 清空章节流，从指定章（的指定段）重新开始 */
+  const jump = useCallback((chapter: Chapter, para = 0) => {
+    if (saveTimer.current) savePosRef.current();
+    pendingRef.current = { chapterId: chapter.id, para };
+    anchorRef.current = null;
+    openAt(chapter);
+  }, [openAt]);
 
   useEffect(() => {
     if (!bookId) return;
     loadChapters(bookId).then(() => {
       const ch = useReader.getState().chapters;
       const target = ch.find((c) => c.id === chapterId) || ch[0];
-      if (target) loadContent(target);
+      if (!target) return;
+      // 不在这里清空 restoreRef：StrictMode 下这个 effect 会跑两次，清掉后第二次就丢了位置
+      const r = restoreRef.current;
+      jump(target, r && r.chapterId === target.id ? r.para : 0);
     });
-  }, [bookId, chapterId, loadChapters, loadContent]);
+  }, [bookId, chapterId, loadChapters, jump]);
 
+  // 当前章变了就更新书架进度（会同步云端）
   useEffect(() => {
-    if (currentChapter && bookId) {
-      const { chapters: list } = useReader.getState();
-      const index = list.findIndex((c) => c.id === currentChapter.id);
-      updateProgress(bookId, currentChapter.id, currentChapter.title, Math.max(index, 0), list.length);
-    }
-  }, [currentChapter, bookId, updateProgress]);
+    if (!bookId || !currentId) return;
+    const list = useReader.getState().chapters;
+    const i = list.findIndex((c) => c.id === currentId);
+    if (i >= 0) updateProgress(bookId, list[i].id, list[i].title, i, list.length);
+  }, [currentId, bookId, updateProgress]);
 
+  // 登录后自动重试加载失败的章节
   useEffect(() => {
-    setCommentPara(null);
-    window.clearTimeout(saveTimer.current);
-    saveTimer.current = undefined;
-    posRef.current = 0;
-    const body = bodyRef.current;
-    if (!body || !content) return;
-    const r = restoreRef.current;
-    restoreRef.current = null;
-    const el = r && r.chapterId === useReader.getState().currentChapter?.id
-      ? body.querySelectorAll<HTMLElement>('.reader-para')[r.para]
-      : undefined;
-    if (el) {
-      body.scrollTop += el.getBoundingClientRect().top - body.getBoundingClientRect().top;
-      posRef.current = r!.para;
-    } else {
-      body.scrollTo(0, 0);
-      setChromeVisible(true);
-    }
-    lastTopRef.current = body.scrollTop;
-    measure();
-  }, [content]);
+    if (!loggedIn) return;
+    useReader.getState().segments.filter((g) => g.status === 'error').forEach((g) => retry(g.chapter.id));
+  }, [loggedIn, retry]);
 
-  // 离开阅读页时把还没写盘的位置存下来，并清掉正文：下次打开时旧正文不能抢先消耗待恢复的位置
+  // 离开阅读页时把还没写盘的位置存下来，并清空章节流
   useEffect(() => () => {
     if (saveTimer.current) savePosRef.current();
-    useReader.setState({ currentChapter: null, content: '', fontCss: '', paraIdx: [], commentStats: {} });
+    useReader.getState().reset();
   }, []);
+
+  /** 找视口顶部的那一段（二分，段落按文档顺序排列） */
+  const topAnchor = () => {
+    const body = bodyRef.current;
+    if (!body) return null;
+    const list = body.querySelectorAll<HTMLElement>('.reader-anchor');
+    if (!list.length) return null;
+    const top = body.getBoundingClientRect().top + 1;
+    let lo = 0;
+    let hi = list.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid].getBoundingClientRect().bottom <= top) lo = mid + 1;
+      else hi = mid;
+    }
+    return list[lo];
+  };
+
+  /** 记下锚点、当前章、章内进度 */
+  const track = () => {
+    const body = bodyRef.current;
+    const a = topAnchor();
+    if (!body || !a) return;
+    anchorRef.current = { el: a, top: a.getBoundingClientRect().top };
+    const ch = a.dataset.ch!;
+    posRef.current = { ch, para: Number(a.dataset.para) || 0 };
+    setCurrent(ch);
+    const seg = body.querySelector<HTMLElement>(`[data-seg="${CSS.escape(ch)}"]`);
+    if (seg) {
+      const passed = body.getBoundingClientRect().top - seg.getBoundingClientRect().top;
+      const span = seg.offsetHeight - body.clientHeight;
+      setProgress(span > 0 ? Math.min(1, Math.max(0, passed / span)) : 1);
+    }
+  };
+
+  /** 离两头不到 1.5 屏时接上前后章 */
+  const grow = () => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const s = useReader.getState();
+    const screen = body.clientHeight * 1.5;
+    if (body.scrollHeight - body.scrollTop - body.clientHeight < screen) s.appendNext();
+    if (body.scrollTop < screen) s.prependPrev();
+  };
+
+  // 章节流或排版变化后：先把阅读位置拉回原处，再看要不要接新章节
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const pending = pendingRef.current;
+    if (pending) {
+      const first = useReader.getState().segments[0];
+      if (!first || first.chapter.id !== pending.chapterId) return;
+      if (first.status === 'loading') {
+        body.scrollTop = 0;
+        lastTopRef.current = 0;
+        return;
+      }
+      pendingRef.current = null;
+      const el = pending.para > 0
+        ? body.querySelector<HTMLElement>(`[data-seg="${CSS.escape(first.chapter.id)}"] .reader-para[data-para="${pending.para}"]`)
+        : null;
+      body.scrollTop = el ? body.scrollTop + el.getBoundingClientRect().top - body.getBoundingClientRect().top : 0;
+      if (!el) setChromeVisible(true);
+    } else {
+      const a = anchorRef.current;
+      if (a?.el.isConnected) {
+        const d = a.el.getBoundingClientRect().top - a.top;
+        if (Math.abs(d) > 0.5) body.scrollTop += d;
+      }
+    }
+    lastTopRef.current = body.scrollTop;
+    track();
+    grow();
+  }, [segments, settings.fontSize, settings.lineHeight, settings.pageWidth, settings.fontFamily]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onScroll = () => {
     const body = bodyRef.current;
-    if (!body) return;
-    const top = body.getBoundingClientRect().top;
-    const paras = body.querySelectorAll('.reader-para');
-    let i = 0;
-    while (i < paras.length - 1 && paras[i].getBoundingClientRect().bottom <= top + 1) i++;
-    posRef.current = i;
-
+    if (!body || pendingRef.current) return;
     const st = body.scrollTop;
     const delta = st - lastTopRef.current;
     lastTopRef.current = st;
-    // 章首、往回滚、读到章末（方便点下一章）时显示
+    // 章首、往回滚、滚到流的尽头时显示
     if (st < 24 || delta < -4 || st >= body.scrollHeight - body.clientHeight - 2) setChromeVisible(true);
     else if (delta > 4) setChromeVisible(false);
-    measure();
+    track();
+    grow();
 
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
+  };
+
+  /** 跳到前后章的章首：已经在流里就直接滚过去，否则重置章节流 */
+  const goChapter = (delta: number) => {
+    const body = bodyRef.current;
+    const { chapters: list, currentId: cur, segments: segs } = useReader.getState();
+    const target = list[list.findIndex((c) => c.id === cur) + delta];
+    if (!body || !target) return;
+    const el = segs.some((g) => g.chapter.id === target.id && g.status === 'ready')
+      ? body.querySelector<HTMLElement>(`[data-seg="${CSS.escape(target.id)}"]`)
+      : null;
+    if (el) body.scrollTop += el.getBoundingClientRect().top - body.getBoundingClientRect().top;
+    else jump(target);
   };
 
   useEffect(() => {
@@ -153,7 +303,6 @@ export default function Reader() {
       if (!body) return;
       // 翻一屏时留出约两行重叠，方便接上文
       const overlap = settings.fontSize * settings.lineHeight * 2;
-      const atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 2;
       const scroll = (top: number) => {
         e.preventDefault();
         body.scrollBy({ top, behavior: 'smooth' });
@@ -161,32 +310,30 @@ export default function Reader() {
       switch (e.key) {
         case 'ArrowDown': return scroll(60);
         case 'ArrowUp': return scroll(-60);
-        case 'ArrowRight': return void nextChapter();
-        case 'ArrowLeft': return void prevChapter();
+        case 'ArrowRight': e.preventDefault(); return goChapter(1);
+        case 'ArrowLeft': e.preventDefault(); return goChapter(-1);
         case 'PageUp': return scroll(-(body.clientHeight - overlap));
         case 'PageDown':
         case ' ':
-          if (e.key === ' ' && e.shiftKey) return scroll(-(body.clientHeight - overlap));
-          // 已经到章末，再按一次进入下一章
-          if (atBottom) {
-            e.preventDefault();
-            return void nextChapter();
-          }
-          return scroll(body.clientHeight - overlap);
+          return scroll((e.key === ' ' && e.shiftKey ? -1 : 1) * (body.clientHeight - overlap));
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [nextChapter, prevChapter, nav, commentPara, settingsOpen, fullScreen, settings.fontSize, settings.lineHeight]);
+  }); // 每次渲染重新绑定，拿到最新的状态
+
+  const onComment = useCallback((p: CommentPara) => {
+    setCommentCh(p.chapterId);
+    setCommentPara(p);
+  }, []);
 
   const fontStack = FONTS.find((f) => f.value === settings.fontFamily)?.css || FONTS[0].css;
-  // 反爬字体（如有）排在最前面负责解码，其余字形落到用户选的字体
-  const fontFamily = fontCss
-    ? fontCss.match(/font-family:\s*([^;,}]+)/)?.[1]?.trim() + ', ' + fontStack
-    : fontStack;
   // 阅读主题只作用于阅读页；antd 浮层（Aa 面板、段评抽屉）挂在容器内，才能拿到同一套颜色变量
   const readerDark = settings.theme === 'night' || (settings.theme === 'auto' && appDark);
   const showChrome = chromeVisible || settingsOpen;
+  const curIdx = chapters.findIndex((c) => c.id === currentId);
+  const curChapter = chapters[curIdx];
+  const curReady = segments.some((g) => g.chapter.id === currentId && g.status === 'ready');
 
   return (
     <ConfigProvider theme={antdConfig(readerDark)} getPopupContainer={() => containerRef.current || document.body}>
@@ -198,13 +345,12 @@ export default function Reader() {
           if (e.clientY < 72 || e.clientY > window.innerHeight - 72) setChromeVisible(true);
         }}
       >
-        {fontCss && <style dangerouslySetInnerHTML={{ __html: fontCss }} />}
         <div
           className={`reader-header${showChrome ? '' : ' hidden'}`}
           style={isMac && !fullScreen ? { paddingLeft: 88 } : undefined}
         >
           <button className="reader-tool" onClick={() => nav(-1)}>← 返回</button>
-          <span className="reader-title">{currentChapter?.title || ''}</span>
+          <span className="reader-title">{curChapter?.title || ''}</span>
           <div className="reader-tools">
             <button
               className="reader-tool"
@@ -227,7 +373,7 @@ export default function Reader() {
         </div>
 
         <div className="reader-body" ref={bodyRef} onScroll={onScroll}>
-          {loading ? (
+          {segments.length === 0 ? (
             <div className="loading">加载中...</div>
           ) : (
             <div
@@ -235,61 +381,44 @@ export default function Reader() {
               style={{
                 fontSize: settings.fontSize,
                 lineHeight: settings.lineHeight,
-                fontFamily,
+                fontFamily: fontStack,
                 ['--reader-width' as string]: `${settings.pageWidth}px`,
               }}
             >
-              <h2 style={{ fontSize: settings.fontSize + 4, marginBottom: 24, fontWeight: 600 }}>
-                {currentChapter?.title}
-              </h2>
-              {content
-                ? content.split('\n').map((text, i) => {
-                  const idx = paraIdx[i] ?? -1;
-                  const count = commentStats[idx] || 0;
-                  return (
-                    <p key={i} className="reader-para">
-                      {idx >= 0 ? (
-                        <>
-                          {text.slice(0, -1)}
-                          {/* 气泡和最后一个字绑在一起，避免单独掉到下一行；没有段评的段落悬停才显示 */}
-                          <span className="para-tail">
-                            {text.slice(-1)}
-                            <button
-                              className={`para-comment${count ? '' : ' empty'}`}
-                              title={count ? '查看段评' : '写段评'}
-                              onClick={() => setCommentPara({ index: idx, text, count })}
-                            >
-                              {count ? (count > 999 ? '999+' : count) : <CommentOutlined />}
-                            </button>
-                          </span>
-                        </>
-                      ) : text}
-                    </p>
-                  );
-                })
-                : '暂无内容'}
+              {segments.map((seg) => (
+                <SegmentView
+                  key={seg.chapter.id}
+                  seg={seg}
+                  fontStack={fontStack}
+                  titleSize={settings.fontSize + 4}
+                  loggedIn={loggedIn}
+                  onComment={onComment}
+                  onRetry={retry}
+                  onLogin={openLogin}
+                />
+              ))}
             </div>
           )}
         </div>
 
-        {content && !loading && <div className="reader-progress">本章 {Math.round(progress * 100)}%</div>}
+        {curIdx >= 0 && curReady && (
+          <div className="reader-progress">本章 {Math.round(progress * 100)}%</div>
+        )}
 
         <div className={`reader-nav${showChrome ? '' : ' hidden'}`}>
-          <button onClick={prevChapter}>上一章</button>
           <button onClick={() => nav(`/book/${bookId}`)}>目录</button>
-          <button onClick={nextChapter}>下一章</button>
+          <button onClick={() => goChapter(-1)} disabled={curIdx <= 0}>上一章</button>
+          <button onClick={() => goChapter(1)} disabled={curIdx < 0 || curIdx >= chapters.length - 1}>下一章</button>
         </div>
 
-        {bookId && currentChapter && (
+        {bookId && (commentCh || currentId) && (
           <CommentDrawer
             bookId={bookId}
-            itemId={currentChapter.id}
+            itemId={commentCh || currentId}
             para={commentPara}
             onClose={() => setCommentPara(null)}
             onPosted={(idx) => {
-              useReader.setState((st) => ({
-                commentStats: { ...st.commentStats, [idx]: (st.commentStats[idx] || 0) + 1 },
-              }));
+              addCommentCount(commentCh, idx);
               setCommentPara((p) => p && { ...p, count: p.count + 1 });
             }}
           />
