@@ -8,6 +8,7 @@ import * as api from '@/services/api';
 import CommentDrawer from '@/components/CommentDrawer';
 import SettingsPanel from '@/components/Reader/SettingsPanel';
 import { FONTS } from '@/components/Reader/options';
+import { splitParagraphs } from '@/components/Reader/text';
 import { useTheme, antdConfig } from '@/stores/theme';
 
 // macOS 隐藏式标题栏的红绿灯压在阅读页左上角，工具栏要让开
@@ -243,7 +244,7 @@ export default function Reader() {
                 {currentChapter?.title}
               </h2>
               {content
-                ? content.split('\n').map((text, i) => {
+                ? splitParagraphs(content).map(({ text, line: i }) => {
                   const idx = paraIdx[i] ?? -1;
                   const count = commentStats[idx] || 0;
                   return (
