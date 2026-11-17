@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   commentDigg: (bookId, id, like, isReply, serviceId) =>
     ipcRenderer.invoke('comment:digg', bookId, id, like, isReply, serviceId),
   categories: () => ipcRenderer.invoke('api:categories'),
-  ranking: (categoryId, page) => ipcRenderer.invoke('api:ranking', categoryId, page),
+  ranking: (rankId, page) => ipcRenderer.invoke('api:ranking', rankId, page),
   recommend: () => ipcRenderer.invoke('api:recommend'),
 
   getBookshelf: () => ipcRenderer.invoke('store:getBookshelf'),

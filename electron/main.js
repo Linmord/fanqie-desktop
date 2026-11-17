@@ -108,12 +108,10 @@ ipcMain.handle('api:categories', async () => {
   return api.getCategories();
 });
 
-// --- IPC: 排行榜 ---
-ipcMain.handle('api:ranking', async (_e, categoryId, page) => {
-  return api.getRanking(categoryId, page);
+// --- IPC: 排行榜 / 首页推荐 ---
+ipcMain.handle('api:ranking', async (_e, rankId, page) => {
+  return api.getRanking(rankId, page);
 });
-
-// --- IPC: 首页推荐 ---
 ipcMain.handle('api:recommend', () => api.getRecommend());
 
 // --- IPC: 书架 ---

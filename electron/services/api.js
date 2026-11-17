@@ -1,5 +1,6 @@
 const https = require('https');
 const crypto = require('crypto');
+const { decodeText } = require('./fontdecode');
 
 const WEB_HOST = 'fanqienovel.com';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -232,45 +233,58 @@ exports.getChapterContent = async function getChapterContent(itemId) {
   }
 };
 
+// 排行榜分类（取自 fanqienovel.com/rank 的 rankCategoryTypeList）
+const RANK_CATEGORIES = {
+  male: [
+    ['1141', '西方奇幻'], ['1140', '东方仙侠'], ['8', '科幻末世'], ['261', '都市日常'],
+    ['124', '都市修真'], ['1014', '都市高武'], ['273', '历史古代'], ['27', '战神赘婿'],
+    ['263', '都市种田'], ['258', '传统玄幻'], ['272', '历史脑洞'], ['539', '悬疑脑洞'],
+    ['262', '都市脑洞'], ['257', '玄幻脑洞'], ['751', '悬疑灵异'], ['504', '抗战谍战'],
+    ['746', '游戏体育'], ['718', '动漫衍生'], ['1016', '男频衍生'],
+  ],
+  female: [
+    ['1139', '古风世情'], ['8', '科幻末世'], ['746', '游戏体育'], ['1015', '女频衍生'],
+    ['248', '玄幻言情'], ['23', '种田'], ['79', '年代'], ['267', '现言脑洞'],
+    ['246', '宫斗宅斗'], ['539', '悬疑脑洞'], ['253', '古言脑洞'], ['24', '快穿'],
+    ['749', '青春甜宠'], ['745', '星光璀璨'], ['747', '女频悬疑'], ['750', '职场婚恋'],
+    ['748', '豪门总裁'], ['1017', '民国言情'],
+  ],
+};
+
+// 分组 id 即性别参数（1 男频 / 0 女频）；同一分类号在男女频下是不同的榜单
 exports.getCategories = async function getCategories() {
   return [
-    { id: 'male', name: '男频', children: [
-      { id: '7', name: '玄幻' }, { id: '1', name: '都市' },
-      { id: '11', name: '科幻' }, { id: '5', name: '历史' },
-      { id: '8', name: '仙侠' }, { id: '3', name: '游戏' },
-    ]},
-    { id: 'female', name: '女频', children: [
-      { id: '12', name: '现言' }, { id: '13', name: '古言' },
-      { id: '14', name: '幻想' }, { id: '15', name: '悬疑' },
-    ]},
+    { id: '1', name: '男频', children: RANK_CATEGORIES.male.map(([id, name]) => ({ id, name })) },
+    { id: '0', name: '女频', children: RANK_CATEGORIES.female.map(([id, name]) => ({ id, name })) },
   ];
 };
 
-exports.getRanking = async function getRanking(categoryId = '0', page = 0) {
+const RANK_PAGE_SIZE = 30;
+
+// rankId 与官网排行页路径一致：性别_榜单_分类，如 "1_2_1141"（榜单 2 阅读榜 / 1 新书榜）；
+// "top" 是官网首页的番茄巅峰榜（综合得分排行，共 30 本、不分页，文字是明文）
+exports.getRanking = async function getRanking(rankId = '1_2_1141', page = 0) {
   try {
-    const html = await webRequest('/');
-    const state = extractState(html);
-    if (!state?.home) return { books: [], total: 0, hasMore: false };
-    const home = state.home;
-
-    let list;
-    switch (categoryId) {
-      case '0': // 推荐
-        list = [...(home.readRankList || []), ...(home.boyList || []), ...(home.girlList || [])];
-        break;
-      case '7': case '8': case '11': case '5': case '1': case '3': // 男频分类
-        list = [...(home.boyList || []), ...(home.readRankList || [])];
-        break;
-      case '12': case '13': case '14': case '15': // 女频分类
-        list = [...(home.girlList || []), ...(home.readRankList || [])];
-        break;
-      default:
-        list = [...(home.topRankList || []), ...(home.readRankList || [])];
+    if (rankId === 'top') {
+      const json = await webRequest('/api/author/misc/top_book_list/v1/?limit=200&offset=0');
+      const books = (JSON.parse(json).book_list || []).map(normalizeWebBook).filter(Boolean);
+      return { books, total: books.length, hasMore: false };
     }
+    const [gender, mold, cid] = String(rankId).split('_');
+    const offset = page * RANK_PAGE_SIZE;
+    const json = await webRequest(`/api/rank/category/list?app_id=2503&rank_list_type=3&offset=${offset}&limit=${RANK_PAGE_SIZE}&category_id=${cid}&rank_version=&gender=${gender}&rankMold=${mold}`);
+    const data = JSON.parse(json).data || {};
+    const list = data.book_list || [];
 
-    const books = list.map(normalizeWebBook).filter(Boolean);
-    const unique = [...new Map(books.map(b => [b.id, b])).values()];
-    return { books: unique, total: unique.length, hasMore: false };
+    const books = list.map((raw) => normalizeWebBook({
+      ...raw,
+      bookName: decodeText(raw.bookName),
+      author: decodeText(raw.author),
+      abstract: decodeText(raw.abstract),
+      lastChapterTitle: decodeText(raw.lastChapterTitle),
+    })).filter(Boolean);
+    const total = data.total_num || 0;
+    return { books, total, hasMore: offset + list.length < total };
   } catch (err) {
     console.error('Ranking error:', err.message);
     return { books: [], total: 0, hasMore: false };

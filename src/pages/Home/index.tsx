@@ -3,58 +3,157 @@ import BookCard from '@/components/BookCard';
 import * as api from '@/services/api';
 import type { Book } from '@/types';
 
-export default function Home() {
-  const [books, setBooks] = useState<Book[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('0');
+type CategoryGroup = Awaited<ReturnType<typeof api.categories>>[number];
+type RecommendSection = Awaited<ReturnType<typeof api.recommend>>[number];
 
-  const categories = [
-    { id: '0', name: '推荐' },
-    { id: '7', name: '玄幻' },
-    { id: '1', name: '都市' },
-    { id: '12', name: '现言' },
-    { id: '13', name: '古言' },
-    { id: '11', name: '科幻' },
-    { id: '5', name: '历史' },
-    { id: '14', name: '幻想' },
-  ];
+const RECOMMEND = 'recommend';
+const TOP = 'top';
+// 与官网排行页一致：2 阅读榜，1 新书榜
+const RANK_MOLDS = [
+  { id: '2', name: '阅读榜' },
+  { id: '1', name: '新书榜' },
+];
+
+function Recommend() {
+  const [sections, setSections] = useState<RecommendSection[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    api.ranking(activeCategory, 0).then((res) => {
-      setBooks(res.books);
+    api.recommend().then((list) => {
+      setSections(list);
       setLoading(false);
     });
-  }, [activeCategory]);
+  }, []);
+
+  if (loading) return <div className="loading">加载中...</div>;
+  if (sections.length === 0) {
+    return <div className="empty-state"><p>暂无内容，请稍后再试</p></div>;
+  }
+  return (
+    <>
+      {sections.map((s) => (
+        <section key={s.title} className="discover-section">
+          <h2 className="section-title">{s.title}</h2>
+          <div className="book-grid">
+            {s.books.map((book) => <BookCard key={book.id} book={book} />)}
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}
+
+function Ranking({ rankId }: { rankId: string }) {
+  const [books, setBooks] = useState<Book[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.ranking(rankId, page).then((res) => {
+      if (cancelled) return;
+      setBooks((prev) => {
+        if (page === 0) return res.books;
+        const seen = new Set(prev.map((b) => b.id));
+        return [...prev, ...res.books.filter((b) => !seen.has(b.id))];
+      });
+      setHasMore(res.hasMore);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [rankId, page]);
+
+  if (books.length === 0) {
+    return loading
+      ? <div className="loading">加载中...</div>
+      : <div className="empty-state"><p>暂无内容，请稍后再试</p></div>;
+  }
+  return (
+    <>
+      <div className="book-grid">
+        {books.map((book) => <BookCard key={book.id} book={book} />)}
+      </div>
+      {loading ? (
+        <div className="loading">加载中...</div>
+      ) : hasMore && (
+        <div className="load-more">
+          <button className="btn-secondary" onClick={() => setPage((p) => p + 1)}>加载更多</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function Home() {
+  const [groups, setGroups] = useState<CategoryGroup[]>([]);
+  const [tab, setTab] = useState(RECOMMEND);
+  const [mold, setMold] = useState(RANK_MOLDS[0].id);
+  const [categoryId, setCategoryId] = useState('');
+
+  useEffect(() => {
+    api.categories().then(setGroups);
+  }, []);
+
+  const group = groups.find((g) => g.id === tab);
+
+  const selectTab = (id: string) => {
+    setTab(id);
+    const first = groups.find((g) => g.id === id)?.children[0]?.id;
+    if (first) setCategoryId(first);
+  };
 
   return (
     <div>
       <h1 className="page-title">发现好书</h1>
 
       <div className="category-tabs">
-        {categories.map((cat) => (
+        {[{ id: RECOMMEND, name: '推荐' }, { id: TOP, name: '巅峰榜' }, ...groups].map((g) => (
           <button
-            key={cat.id}
-            className={`category-tab${activeCategory === cat.id ? ' active' : ''}`}
-            onClick={() => setActiveCategory(cat.id)}
+            key={g.id}
+            className={`category-tab${tab === g.id ? ' active' : ''}`}
+            onClick={() => selectTab(g.id)}
           >
-            {cat.name}
+            {g.name}
           </button>
         ))}
+        {group && (
+          <div className="rank-molds">
+            {RANK_MOLDS.map((m) => (
+              <button
+                key={m.id}
+                className={`category-tab${mold === m.id ? ' active' : ''}`}
+                onClick={() => setMold(m.id)}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {loading ? (
-        <div className="loading">加载中...</div>
-      ) : books.length > 0 ? (
-        <div className="book-grid">
-          {books.map((book) => (
-            <BookCard key={book.id} book={book} />
+      {group && (
+        <div className="category-tabs">
+          {group.children.map((cat) => (
+            <button
+              key={cat.id}
+              className={`category-tab${categoryId === cat.id ? ' active' : ''}`}
+              onClick={() => setCategoryId(cat.id)}
+            >
+              {cat.name}
+            </button>
           ))}
         </div>
+      )}
+
+      {tab === TOP ? (
+        <Ranking key={TOP} rankId={TOP} />
+      ) : group && categoryId ? (
+        // 用 key 让换榜单时从第一页重新加载
+        <Ranking key={`${group.id}_${mold}_${categoryId}`} rankId={`${group.id}_${mold}_${categoryId}`} />
       ) : (
-        <div className="empty-state">
-          <p>暂无内容，请稍后再试</p>
-        </div>
+        <Recommend />
       )}
     </div>
   );
