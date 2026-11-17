@@ -12,7 +12,8 @@ interface ElectronAPI {
   commentReply(itemId: string, bookId: string, paraIndex: number, paraText: string, rootId: string, toUserId: string, text: string, toReplyId?: string): Promise<import('./types').ParaComment>;
   commentDigg(bookId: string, id: string, like: boolean, isReply: boolean, serviceId: number): Promise<void>;
   categories(): Promise<{ id: string; name: string; children: { id: string; name: string }[] }[]>;
-  ranking(categoryId?: string, page?: number): Promise<import('./types').SearchResult>;
+  ranking(rankId?: string, page?: number): Promise<import('./types').SearchResult>;
+  recommend(): Promise<{ title: string; books: import('./types').Book[] }[]>;
 
   getBookshelf(): Promise<import('./types').BookshelfItem[]>;
   addToBookshelf(item: import('./types').BookshelfItem): Promise<import('./types').BookshelfItem[]>;
@@ -32,6 +33,8 @@ interface ElectronAPI {
 
   getSettings(): Promise<import('./types').ReaderSettings>;
   saveSettings(settings: import('./types').ReaderSettings): Promise<import('./types').ReaderSettings>;
+  getAppearance(): Promise<import('./types').Appearance>;
+  setAppearance(mode: import('./types').Appearance): Promise<import('./types').Appearance>;
 }
 
 interface Window {

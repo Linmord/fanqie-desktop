@@ -16,7 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   commentDigg: (bookId, id, like, isReply, serviceId) =>
     ipcRenderer.invoke('comment:digg', bookId, id, like, isReply, serviceId),
   categories: () => ipcRenderer.invoke('api:categories'),
-  ranking: (categoryId, page) => ipcRenderer.invoke('api:ranking', categoryId, page),
+  ranking: (rankId, page) => ipcRenderer.invoke('api:ranking', rankId, page),
+  recommend: () => ipcRenderer.invoke('api:recommend'),
 
   getBookshelf: () => ipcRenderer.invoke('store:getBookshelf'),
   addToBookshelf: (item) => ipcRenderer.invoke('store:addToBookshelf', item),
@@ -37,4 +38,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getSettings: () => ipcRenderer.invoke('store:getSettings'),
   saveSettings: (settings) => ipcRenderer.invoke('store:saveSettings', settings),
+  getAppearance: () => ipcRenderer.invoke('app:getAppearance'),
+  setAppearance: (mode) => ipcRenderer.invoke('app:setAppearance', mode),
 });

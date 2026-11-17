@@ -25,6 +25,7 @@ const fallback: ElectronAPI = {
   commentDigg: () => Promise.reject(new Error('请在桌面客户端中点赞')),
   categories: () => Promise.resolve([]),
   ranking: noop,
+  recommend: noopArr,
   getBookshelf: noopArr,
   addToBookshelf: noopArr as ElectronAPI['addToBookshelf'],
   removeFromBookshelf: noopArr as ElectronAPI['removeFromBookshelf'],
@@ -40,6 +41,8 @@ const fallback: ElectronAPI = {
   updateCloudProgress: () => Promise.resolve(),
   getSettings: noopSettings,
   saveSettings: noopSettings as ElectronAPI['saveSettings'],
+  getAppearance: () => Promise.resolve('system' as const),
+  setAppearance: (mode) => Promise.resolve(mode),
 };
 
 const api = isElectron ? window.electronAPI : fallback;
@@ -56,6 +59,7 @@ export const commentReply = api.commentReply.bind(api);
 export const commentDigg = api.commentDigg.bind(api);
 export const categories = api.categories.bind(api);
 export const ranking = api.ranking.bind(api);
+export const recommend = api.recommend.bind(api);
 
 export const getBookshelf = api.getBookshelf.bind(api);
 export const addToBookshelf = api.addToBookshelf.bind(api);
@@ -75,3 +79,5 @@ export const updateCloudProgress = api.updateCloudProgress.bind(api);
 
 export const getSettings = api.getSettings.bind(api);
 export const saveSettings = api.saveSettings.bind(api);
+export const getAppearance = api.getAppearance.bind(api);
+export const setAppearance = api.setAppearance.bind(api);
