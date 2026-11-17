@@ -83,10 +83,11 @@ function LikeButton({ c }: { c: ParaComment }) {
 
 function CommentItem({ c, root, children }: { c: ParaComment; root: ParaComment; children?: React.ReactNode }) {
   const { onReply } = useContext(Ctx);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   return (
     <div className="cmt-item">
-      {c.avatar ? (
-        <img className="cmt-avatar" src={c.avatar} referrerPolicy="no-referrer" alt="" />
+      {c.avatar && !avatarFailed ? (
+        <img className="cmt-avatar" src={c.avatar} referrerPolicy="no-referrer" alt="" onError={() => setAvatarFailed(true)} />
       ) : (
         <span className="cmt-avatar cmt-avatar-empty"><UserOutlined /></span>
       )}
