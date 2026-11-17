@@ -4,11 +4,12 @@ import { useReader, type Segment } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useAccount } from '@/stores/account';
 import { ConfigProvider, Popover } from 'antd';
-import { CommentOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
+import { CommentOutlined, FullscreenExitOutlined, FullscreenOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import type { Chapter } from '@/types';
 import * as api from '@/services/api';
 import CommentDrawer from '@/components/CommentDrawer';
 import SettingsPanel from '@/components/Reader/SettingsPanel';
+import TocDrawer from '@/components/Reader/TocDrawer';
 import { FONTS } from '@/components/Reader/options';
 import { useTheme, antdConfig } from '@/stores/theme';
 
@@ -95,6 +96,7 @@ export default function Reader() {
   // 段评抽屉关闭动画期间还要用到章节 id，单独留一份
   const [commentCh, setCommentCh] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(false);
   // 沉浸模式：往下读时收起工具栏，往上滚或鼠标移到上下边缘时出现
   const [chromeVisible, setChromeVisible] = useState(true);
   const [fullScreen, setFullScreen] = useState(false);
@@ -107,6 +109,7 @@ export default function Reader() {
   } = useReader();
   const loggedIn = useAccount((s) => !!s.user);
   const openLogin = useAccount((s) => s.openLogin);
+  const bookTitle = useBookshelf((s) => s.items.find((i) => i.book.id === bookId)?.book.title) || '';
 
   const updateProgress = useBookshelf((s) => s.updateProgress);
   const savePosition = useBookshelf((s) => s.savePosition);
@@ -287,8 +290,8 @@ export default function Reader() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // 段评抽屉打开时，方向键和 Esc 留给抽屉；带修饰键的组合留给系统
-      if (commentPara || e.metaKey || e.ctrlKey || e.altKey) return;
+      // 段评、目录抽屉打开时，按键留给抽屉；带修饰键的组合留给系统
+      if (commentPara || tocOpen || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Escape') {
         if (settingsOpen) setSettingsOpen(false);
         else if (fullScreen) api.toggleFullScreen();
@@ -297,6 +300,11 @@ export default function Reader() {
       }
       if (e.key === 'f' || e.key === 'F') {
         api.toggleFullScreen();
+        return;
+      }
+      if (e.key === 't' || e.key === 'T') {
+        setSettingsOpen(false);
+        setTocOpen(true);
         return;
       }
       const body = bodyRef.current;
@@ -328,9 +336,9 @@ export default function Reader() {
   }, []);
 
   const fontStack = FONTS.find((f) => f.value === settings.fontFamily)?.css || FONTS[0].css;
-  // 阅读主题只作用于阅读页；antd 浮层（Aa 面板、段评抽屉）挂在容器内，才能拿到同一套颜色变量
+  // 阅读主题只作用于阅读页；antd 浮层（Aa 面板、抽屉）挂在容器内，才能拿到同一套颜色变量
   const readerDark = settings.theme === 'night' || (settings.theme === 'auto' && appDark);
-  const showChrome = chromeVisible || settingsOpen;
+  const showChrome = chromeVisible || settingsOpen || tocOpen;
   const curIdx = chapters.findIndex((c) => c.id === currentId);
   const curChapter = chapters[curIdx];
   const curReady = segments.some((g) => g.chapter.id === currentId && g.status === 'ready');
@@ -350,6 +358,9 @@ export default function Reader() {
           style={isMac && !fullScreen ? { paddingLeft: 88 } : undefined}
         >
           <button className="reader-tool" onClick={() => nav(-1)}>← 返回</button>
+          <button className="reader-tool" title="目录（T）" onClick={() => setTocOpen(true)}>
+            <UnorderedListOutlined />
+          </button>
           <span className="reader-title">{curChapter?.title || ''}</span>
           <div className="reader-tools">
             <button
@@ -406,10 +417,20 @@ export default function Reader() {
         )}
 
         <div className={`reader-nav${showChrome ? '' : ' hidden'}`}>
-          <button onClick={() => nav(`/book/${bookId}`)}>目录</button>
+          <button onClick={() => setTocOpen(true)}>目录</button>
           <button onClick={() => goChapter(-1)} disabled={curIdx <= 0}>上一章</button>
           <button onClick={() => goChapter(1)} disabled={curIdx < 0 || curIdx >= chapters.length - 1}>下一章</button>
         </div>
+
+        <TocDrawer
+          open={tocOpen}
+          onClose={() => setTocOpen(false)}
+          bookTitle={bookTitle}
+          chapters={chapters}
+          currentId={currentId}
+          onSelect={(c) => c.id !== currentId && jump(c)}
+          topInset={isMac && !fullScreen}
+        />
 
         {bookId && (commentCh || currentId) && (
           <CommentDrawer
