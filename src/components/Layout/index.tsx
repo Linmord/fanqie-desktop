@@ -107,6 +107,7 @@ export default function Layout() {
         </div>
       </aside>
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <div className="titlebar-drag" />
       <main className="content">
         <Outlet />
       </main>

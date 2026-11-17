@@ -100,10 +100,10 @@ body {
 .sidebar-nav {
   padding: 60px 12px 12px;
   flex: 1;
-  -webkit-app-region: no-drag;
 }
 
 .sidebar-item {
+  -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -125,6 +125,17 @@ body {
   background: var(--active-bg);
   color: var(--text-primary);
   font-weight: 500;
+}
+
+/* 内容区顶部留一条透明拖动条：滚动容器本身设 drag 不可靠，单独用固定定位的元素 */
+.titlebar-drag {
+  position: fixed;
+  top: 0;
+  left: 220px;
+  right: 0;
+  height: 40px;
+  z-index: 10;
+  -webkit-app-region: drag;
 }
 
 .content {
