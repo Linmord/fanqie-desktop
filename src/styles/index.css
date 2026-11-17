@@ -329,6 +329,11 @@ body {
   padding: 88px 32px 120px;
   white-space: pre-wrap;
   word-break: break-word;
+  /* 两端对齐；避头尾（句号逗号不落行首）；相邻标点挤压；中文与英文数字之间自动留空 */
+  text-align: justify;
+  line-break: strict;
+  text-spacing-trim: normal;
+  text-autospace: normal;
 }
 
 .reader-nav {
@@ -833,7 +838,8 @@ body {
 
 /* 段评 */
 .reader-para {
-  margin: 0;
+  margin: 0 0 0.6em;
+  text-indent: 2em;
 }
 
 .para-tail {
