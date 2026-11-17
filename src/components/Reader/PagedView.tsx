@@ -13,6 +13,8 @@ export interface PagedTarget {
 export interface PagedHandle {
   next: () => void;
   prev: () => void;
+  /** 翻到这段文字所在的页（章内搜索用） */
+  reveal: (range: Range) => void;
 }
 
 interface Props {
@@ -156,7 +158,18 @@ const PagedView = forwardRef<PagedHandle, Props>(function PagedView(props, ref) 
     setPage(nextPage);
   };
 
-  useImperativeHandle(ref, () => ({ next: () => flip(1), prev: () => flip(-1) }));
+  const reveal = (range: Range) => {
+    const inner = innerRef.current;
+    const r = range.getClientRects()[0];
+    if (!inner || !r) return;
+    const p = Math.floor((r.left - inner.getBoundingClientRect().left + 1) / step);
+    if (p === pageRef.current.page || p < 0 || p >= pageRef.current.count) return;
+    keepAnchor.current = false;
+    setAnimate(true);
+    setPage(p);
+  };
+
+  useImperativeHandle(ref, () => ({ next: () => flip(1), prev: () => flip(-1), reveal }));
 
   // 点左右三分之一翻页，点中间切换工具栏；点到按钮或正在选字时不处理
   const onClick = (e: React.MouseEvent) => {

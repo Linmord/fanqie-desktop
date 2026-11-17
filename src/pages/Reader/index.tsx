@@ -13,6 +13,7 @@ import TocDrawer from '@/components/Reader/TocDrawer';
 import { FONTS } from '@/components/Reader/options';
 import { splitParagraphs } from '@/components/Reader/text';
 import { BookmarkIcon } from '@/components/Reader/BookmarkIcon';
+import SearchBar, { focusSearch } from '@/components/Reader/SearchBar';
 import SegmentView, { type CommentPara } from '@/components/Reader/SegmentView';
 import PagedView, { type PagedHandle, type PagedTarget } from '@/components/Reader/PagedView';
 import { useTheme, antdConfig } from '@/stores/theme';
@@ -52,6 +53,7 @@ export default function Reader() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   // 当前位置（章 id:段号），书签按钮据此高亮。字符串相同时 setState 不会重渲染
   const [posKey, setPosKey] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const paged = settings.readingMode === 'page';
 
   const updateProgress = useBookshelf((s) => s.updateProgress);
@@ -342,10 +344,18 @@ export default function Reader() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // 段评、目录抽屉打开时，按键留给抽屉；带修饰键的组合留给系统
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 'f' || e.key === 'F') && !commentPara && !tocOpen) {
+        e.preventDefault();
+        if (searchOpen) focusSearch();
+        else setSearchOpen(true);
+        return;
+      }
+      // 段评、目录抽屉打开时，按键留给抽屉；带修饰键的组合留给系统；输入框里打字不触发快捷键
       if (commentPara || tocOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement).closest?.('input, textarea')) return;
       if (e.key === 'Escape') {
-        if (settingsOpen) setSettingsOpen(false);
+        if (searchOpen) setSearchOpen(false);
+        else if (settingsOpen) setSettingsOpen(false);
         else if (fullScreen) api.toggleFullScreen();
         else nav(-1);
         return;
@@ -559,6 +569,31 @@ export default function Reader() {
           />
           <button onClick={() => goChapter(1)} disabled={curIdx < 0 || curIdx >= chapters.length - 1}>下一章</button>
         </div>
+
+        {searchOpen && (
+          <SearchBar
+            onClose={() => setSearchOpen(false)}
+            getRoot={() => document.querySelector(`.reader-container [data-seg="${CSS.escape(currentId)}"]`)}
+            version={segments.find((g) => g.chapter.id === currentId)}
+            isAhead={(range) => {
+              const r = range.getBoundingClientRect();
+              if (paged) {
+                const view = document.querySelector('.reader-page-view')?.getBoundingClientRect();
+                return !view || r.left >= view.left - 1;
+              }
+              const body = bodyRef.current;
+              return !body || r.top >= body.getBoundingClientRect().top;
+            }}
+            onReveal={(range) => {
+              if (paged) return pagedRef.current?.reveal(range);
+              const body = bodyRef.current;
+              if (!body) return;
+              const r = range.getBoundingClientRect();
+              const b = body.getBoundingClientRect();
+              body.scrollTop += r.top - b.top - body.clientHeight / 2;
+            }}
+          />
+        )}
 
         <TocDrawer
           open={tocOpen}
