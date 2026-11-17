@@ -117,6 +117,7 @@ ipcMain.handle('comment:reply', (_e, itemId, bookId, paraIndex, paraText, rootId
   appApi.replyAdd(String(itemId), String(bookId), paraIndex, paraText, rootId, toUserId, text, toReplyId));
 ipcMain.handle('comment:digg', (_e, bookId, id, like, isReply, serviceId) =>
   appApi.commentDigg(String(bookId), String(id), like, isReply, serviceId));
+ipcMain.handle('comment:emojis', () => api.getEmojis());
 
 // --- IPC: 分类列表 ---
 ipcMain.handle('api:categories', async () => {

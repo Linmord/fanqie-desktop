@@ -1130,6 +1130,13 @@ body {
   background: var(--bg-card);
 }
 
+.cmt-emoji {
+  width: 1.4em;
+  height: 1.4em;
+  margin: 0 1px;
+  vertical-align: -0.35em;
+}
+
 .cmt-reply-to {
   color: var(--text-secondary);
 }

@@ -22,10 +22,30 @@ interface ReplyTarget {
   target: ParaComment;
 }
 
-const Ctx = createContext<{ bookId: string; onReply: (root: ParaComment, target: ParaComment) => void }>({
+const Ctx = createContext<{
+  bookId: string;
+  onReply: (root: ParaComment, target: ParaComment) => void;
+  /** [偷笑] 这类表情代码对应的图片 */
+  emojis: Record<string, string>;
+}>({
   bookId: '',
   onReply: () => {},
+  emojis: {},
 });
+
+/** 把正文里认识的表情代码换成图片，不认识的原样保留 */
+function CommentText({ text }: { text: string }) {
+  const { emojis } = useContext(Ctx);
+  return (
+    <>
+      {text.split(/(\[[^[\]]{1,8}\])/).map((part, i) =>
+        emojis[part]
+          ? <img key={i} className="cmt-emoji" src={emojis[part]} referrerPolicy="no-referrer" alt={part} title={part} />
+          : part,
+      )}
+    </>
+  );
+}
 
 const IMAGE_BOX = 200;
 
@@ -128,7 +148,7 @@ function CommentItem({ c, root, children }: { c: ParaComment; root: ParaComment;
         </div>
         <div className="cmt-text">
           {c.replyTo && <span className="cmt-reply-to">回复 {c.replyTo}：</span>}
-          {c.text}
+          <CommentText text={c.text} />
         </div>
         <CommentImages images={c.images} />
         <div className="cmt-meta">
@@ -292,6 +312,12 @@ export default function CommentDrawer({ bookId, itemId, para, onClose, onPosted 
     if (!ready) init();
   }, [ready, init]);
 
+  // 主进程会缓存表情表，每次打开段落取一次即可（上次失败时顺便重试）
+  const [emojis, setEmojis] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (para) api.commentEmojis().then(setEmojis);
+  }, [para]);
+
   const load = async (reset: boolean) => {
     if (!para) return;
     const my = reset ? ++gen.current : gen.current;
@@ -361,7 +387,7 @@ export default function CommentDrawer({ bookId, itemId, para, onClose, onPosted 
         />
       )}
     >
-      <Ctx.Provider value={{ bookId, onReply }}>
+      <Ctx.Provider value={{ bookId, onReply, emojis }}>
         {para && <blockquote className="cmt-quote">{para.text}</blockquote>}
         {comments.map((c) => (
           <CommentItem key={c.id} c={c} root={c}>
