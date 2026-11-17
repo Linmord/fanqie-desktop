@@ -7,7 +7,6 @@ import {
   BookOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import LoginModal from '@/components/LoginModal';
 import { useAccount } from '@/stores/account';
 import { useBookshelf } from '@/stores/bookshelf';
 
@@ -76,7 +75,6 @@ export default function Layout() {
       <main className="content">
         <Outlet />
       </main>
-      <LoginModal />
     </>
   );
 }
