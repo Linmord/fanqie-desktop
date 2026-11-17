@@ -56,15 +56,12 @@ export default function Reader() {
     return () => window.removeEventListener('keydown', handler);
   }, [nextChapter, prevChapter, nav, commentPara]);
 
-  const bgColor = settings.theme.bgColor;
-  const textColor = settings.theme.textColor;
-
   const fontFamily = fontCss
     ? fontCss.match(/font-family:\s*([^;,}]+)/)?.[1]?.trim() + ', ' + settings.fontFamily
     : settings.fontFamily;
 
   return (
-    <div className="reader-container" style={{ background: bgColor, color: textColor }}>
+    <div className="reader-container">
       {fontCss && <style dangerouslySetInnerHTML={{ __html: fontCss }} />}
       <div className="reader-header">
         <button onClick={() => nav(-1)}>← 返回</button>
@@ -74,7 +71,7 @@ export default function Reader() {
 
       <div className="reader-body" ref={bodyRef}>
         {loading ? (
-          <div className="loading" style={{ color: textColor }}>加载中...</div>
+          <div className="loading">加载中...</div>
         ) : (
           <div
             className="reader-text"

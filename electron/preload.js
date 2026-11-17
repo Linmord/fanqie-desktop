@@ -38,4 +38,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getSettings: () => ipcRenderer.invoke('store:getSettings'),
   saveSettings: (settings) => ipcRenderer.invoke('store:saveSettings', settings),
+  getAppearance: () => ipcRenderer.invoke('app:getAppearance'),
+  setAppearance: (mode) => ipcRenderer.invoke('app:setAppearance', mode),
 });

@@ -2,15 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Claude 风格：暖调象牙白 / 暖炭灰，陶土橙强调色。data-theme 由 stores/theme.ts 设置 */
 :root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-card: #0f3460;
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0b0;
-  --accent: #e94560;
-  --accent-hover: #ff6b6b;
-  --border: #2a2a4a;
+  --bg-primary: #FAF9F5;
+  --bg-secondary: #F0EEE6;
+  --bg-card: #E8E6DC;
+  --text-primary: #3D3929;
+  --text-secondary: #78766D;
+  --accent: #C96442;
+  --accent-hover: #B4583A;
+  --accent-soft: rgba(201, 100, 66, 0.12);
+  --on-accent: #FFFFFF;
+  --border: #E3E0D5;
+  --hover-bg: rgba(61, 57, 41, 0.05);
+  --active-bg: rgba(61, 57, 41, 0.08);
+  --danger: #B5412F;
+  /* 界面用无衬线，书名、简介、正文用衬线；Georgia 在前，西文和数字落到 Georgia */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-serif: Georgia, 'Songti SC', 'STSong', 'Noto Serif CJK SC', 'SimSun', serif;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg-primary: #262624;
+  --bg-secondary: #1F1E1D;
+  --bg-card: #30302E;
+  --text-primary: #E8E6DC;
+  --text-secondary: #9C9A92;
+  --accent: #D97757;
+  --accent-hover: #E38A6D;
+  --accent-soft: rgba(217, 119, 87, 0.16);
+  --on-accent: #FFFFFF;
+  --border: #3A3936;
+  --hover-bg: rgba(255, 255, 255, 0.05);
+  --active-bg: rgba(255, 255, 255, 0.08);
+  --danger: #E5796A;
+  color-scheme: dark;
 }
 
 * {
@@ -20,7 +47,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg-primary);
   color: var(--text-primary);
   overflow: hidden;
@@ -80,13 +107,14 @@ body {
 }
 
 .sidebar-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
 .sidebar-item.active {
-  background: rgba(233, 69, 96, 0.15);
-  color: var(--accent);
+  background: var(--active-bg);
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .content {
@@ -120,6 +148,7 @@ body {
 }
 
 .book-title {
+  font-family: var(--font-serif);
   margin-top: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -158,7 +187,7 @@ body {
 .search-bar button {
   padding: 10px 20px;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -170,6 +199,7 @@ body {
 }
 
 .page-title {
+  font-family: var(--font-serif);
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 20px;
@@ -197,7 +227,7 @@ body {
 
 .chapter-item:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--hover-bg);
 }
 
 .chapter-item.active {
@@ -208,6 +238,8 @@ body {
   position: fixed;
   inset: 0;
   z-index: 100;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
 }
@@ -228,7 +260,7 @@ body {
 
 .reader-header button {
   -webkit-app-region: no-drag;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-bg);
   border: none;
   color: var(--text-primary);
   padding: 6px 14px;
@@ -271,7 +303,7 @@ body {
 
 .reader-nav button {
   padding: 8px 24px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-bg);
   border: none;
   color: var(--text-primary);
   border-radius: 6px;
@@ -280,7 +312,7 @@ body {
 }
 
 .reader-nav button:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--active-bg);
 }
 
 .detail-header {
@@ -306,6 +338,7 @@ body {
 }
 
 .detail-title {
+  font-family: var(--font-serif);
   font-size: 24px;
   font-weight: 600;
 }
@@ -318,6 +351,7 @@ body {
 }
 
 .detail-desc {
+  font-family: var(--font-serif);
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
@@ -337,7 +371,7 @@ body {
 .btn-primary {
   padding: 10px 28px;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -350,7 +384,7 @@ body {
 
 .btn-secondary {
   padding: 10px 28px;
-  background: var(--bg-card);
+  background: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -359,7 +393,7 @@ body {
 }
 
 .btn-secondary:hover {
-  border-color: var(--accent);
+  background: var(--hover-bg);
 }
 
 .empty-state {
@@ -415,13 +449,13 @@ body {
 }
 
 .category-tab:hover {
-  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .category-tab.active {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
 }
 
 .bookshelf-card {
@@ -457,9 +491,38 @@ body {
 
 /* ---------- 账号 ---------- */
 .sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 12px;
   border-top: 1px solid var(--border);
   -webkit-app-region: no-drag;
+}
+
+.sidebar-account .ant-dropdown-trigger,
+.sidebar-account .account-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.appearance-btn {
+  flex: none;
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.appearance-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
 .account-btn {
@@ -478,7 +541,7 @@ body {
 }
 
 .account-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
   color: var(--text-primary);
 }
 
@@ -535,7 +598,7 @@ body {
   border: none;
   border-radius: 6px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
 }
 
@@ -616,7 +679,7 @@ body {
 
 .para-comment:hover {
   opacity: 1;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
 }
 
@@ -646,7 +709,7 @@ body {
   line-height: 1.7;
   color: var(--text-secondary);
   border-left: 3px solid var(--accent);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover-bg);
   border-radius: 0 6px 6px 0;
   max-height: 120px;
   overflow-y: auto;
@@ -715,7 +778,7 @@ body {
 }
 
 .cmt-tag.author {
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -808,8 +871,8 @@ body {
   padding: 8px;
   font-size: 13px;
   color: var(--accent);
-  background: rgba(233, 69, 96, 0.08);
-  border: 1px dashed rgba(233, 69, 96, 0.4);
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
   border-radius: 6px;
   cursor: pointer;
 }
@@ -827,7 +890,7 @@ body {
 .cmt-replies {
   margin-top: 4px;
   padding: 0 10px 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--hover-bg);
   border-radius: 6px;
 }
 
@@ -843,5 +906,5 @@ body {
 
 .cmt-error {
   font-size: 12px;
-  color: #ff7875;
+  color: var(--danger);
 }

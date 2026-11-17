@@ -38,6 +38,9 @@ export interface BookshelfItem {
   updatedAt: string;
 }
 
+/** 全应用外观模式 */
+export type Appearance = 'system' | 'light' | 'dark';
+
 /** 阅读器主题 */
 export interface ReaderTheme {
   name: string;

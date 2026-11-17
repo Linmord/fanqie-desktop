@@ -41,6 +41,8 @@ const fallback: ElectronAPI = {
   updateCloudProgress: () => Promise.resolve(),
   getSettings: noopSettings,
   saveSettings: noopSettings as ElectronAPI['saveSettings'],
+  getAppearance: () => Promise.resolve('system' as const),
+  setAppearance: (mode) => Promise.resolve(mode),
 };
 
 const api = isElectron ? window.electronAPI : fallback;
@@ -77,3 +79,5 @@ export const updateCloudProgress = api.updateCloudProgress.bind(api);
 
 export const getSettings = api.getSettings.bind(api);
 export const saveSettings = api.saveSettings.bind(api);
+export const getAppearance = api.getAppearance.bind(api);
+export const setAppearance = api.setAppearance.bind(api);

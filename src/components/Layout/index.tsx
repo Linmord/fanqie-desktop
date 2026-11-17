@@ -1,14 +1,24 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Avatar, Dropdown } from 'antd';
+import { Avatar, Dropdown, Tooltip } from 'antd';
 import {
   HomeOutlined,
   SearchOutlined,
   BookOutlined,
   UserOutlined,
+  DesktopOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons';
 import { useAccount } from '@/stores/account';
 import { useBookshelf } from '@/stores/bookshelf';
+import { useTheme, appearanceLabel } from '@/stores/theme';
+
+const appearanceIcon = {
+  system: <DesktopOutlined />,
+  light: <SunOutlined />,
+  dark: <MoonOutlined />,
+};
 
 const navItems = [
   { to: '/', icon: <HomeOutlined />, label: '发现' },
@@ -18,6 +28,7 @@ const navItems = [
 
 export default function Layout() {
   const { user, ready, init, openLogin, logout } = useAccount();
+  const { appearance, cycle } = useTheme();
 
   // 启动时恢复登录态，再加载书架（登录了就顺带拉一次云书架）
   useEffect(() => {
@@ -43,34 +54,37 @@ export default function Layout() {
           ))}
         </nav>
 
-        {ready && (
-          <div className="sidebar-account">
-            {user ? (
-              <Dropdown
-                trigger={['click']}
-                placement="topLeft"
-                menu={{
-                  items: [{ key: 'logout', label: '退出登录' }],
-                  onClick: async () => {
-                    await logout();
-                    useBookshelf.getState().load();
-                  },
-                }}
-              >
-                <button className="account-btn">
-                  <Avatar size={28} src={user.avatar || undefined} icon={<UserOutlined />} />
-                  <span className="account-name">{user.name}</span>
-                  {user.isVip && <span className="vip-badge">VIP</span>}
-                </button>
-              </Dropdown>
-            ) : (
-              <button className="account-btn" onClick={openLogin}>
-                <Avatar size={28} icon={<UserOutlined />} />
-                <span className="account-name">登录番茄账号</span>
+        <div className="sidebar-account">
+          {ready && (user ? (
+            <Dropdown
+              trigger={['click']}
+              placement="topLeft"
+              menu={{
+                items: [{ key: 'logout', label: '退出登录' }],
+                onClick: async () => {
+                  await logout();
+                  useBookshelf.getState().load();
+                },
+              }}
+            >
+              <button className="account-btn">
+                <Avatar size={28} src={user.avatar || undefined} icon={<UserOutlined />} />
+                <span className="account-name">{user.name}</span>
+                {user.isVip && <span className="vip-badge">VIP</span>}
               </button>
-            )}
-          </div>
-        )}
+            </Dropdown>
+          ) : (
+            <button className="account-btn" onClick={openLogin}>
+              <Avatar size={28} icon={<UserOutlined />} />
+              <span className="account-name">登录番茄账号</span>
+            </button>
+          ))}
+          <Tooltip title={`外观：${appearanceLabel[appearance]}`} placement="top">
+            <button className="appearance-btn" onClick={cycle}>
+              {appearanceIcon[appearance]}
+            </button>
+          </Tooltip>
+        </div>
       </aside>
       <main className="content">
         <Outlet />

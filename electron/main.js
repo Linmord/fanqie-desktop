@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, nativeTheme } = require('electron');
 const path = require('path');
 const api = require('./services/api');
 const { FanqieAppApi } = require('./services/appapi');
@@ -6,6 +6,9 @@ const store = require('./services/store');
 const account = require('./services/account');
 
 let mainWindow;
+
+// 窗口底色与页面主题一致，避免启动和切换明暗时闪一下别的颜色
+const windowBg = () => (nativeTheme.shouldUseDarkColors ? '#262624' : '#FAF9F5');
 const appApi = new FanqieAppApi();
 appApi.getCookie = () => account.getCookieHeader();
 
@@ -26,7 +29,7 @@ function createWindow() {
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 } }
       : { autoHideMenuBar: true }),
-    backgroundColor: '#1a1a2e',
+    backgroundColor: windowBg(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -48,6 +51,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // 外观模式交给 nativeTheme，页面里的 prefers-color-scheme 会跟着变
+  nativeTheme.themeSource = store.getAppearance();
+  nativeTheme.on('updated', () => mainWindow?.setBackgroundColor(windowBg()));
   createWindow();
 
   app.on('activate', () => {
@@ -165,3 +171,9 @@ ipcMain.handle('store:replaceBookshelf', (_e, items) => store.replaceBookshelf(i
 // --- IPC: 设置 ---
 ipcMain.handle('store:getSettings', () => store.getSettings());
 ipcMain.handle('store:saveSettings', (_e, settings) => store.saveSettings(settings));
+ipcMain.handle('app:getAppearance', () => store.getAppearance());
+ipcMain.handle('app:setAppearance', (_e, mode) => {
+  const saved = store.saveAppearance(mode);
+  nativeTheme.themeSource = saved;
+  return saved;
+});

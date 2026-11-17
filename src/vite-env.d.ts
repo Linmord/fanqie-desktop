@@ -33,6 +33,8 @@ interface ElectronAPI {
 
   getSettings(): Promise<import('./types').ReaderSettings>;
   saveSettings(settings: import('./types').ReaderSettings): Promise<import('./types').ReaderSettings>;
+  getAppearance(): Promise<import('./types').Appearance>;
+  setAppearance(mode: import('./types').Appearance): Promise<import('./types').Appearance>;
 }
 
 interface Window {

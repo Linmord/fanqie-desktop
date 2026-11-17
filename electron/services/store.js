@@ -75,3 +75,17 @@ exports.saveSettings = function (settings) {
   writeJSON('settings.json', settings);
   return settings;
 };
+
+const appearances = ['system', 'light', 'dark'];
+
+/** 全应用外观：跟随系统 / 浅色 / 深色，单独存一个文件，不和阅读设置互相覆盖 */
+exports.getAppearance = function () {
+  const mode = readJSON('appearance.json', 'system');
+  return appearances.includes(mode) ? mode : 'system';
+};
+
+exports.saveAppearance = function (mode) {
+  const value = appearances.includes(mode) ? mode : 'system';
+  writeJSON('appearance.json', value);
+  return value;
+};
