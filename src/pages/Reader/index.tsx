@@ -12,6 +12,7 @@ import SettingsPanel from '@/components/Reader/SettingsPanel';
 import TocDrawer from '@/components/Reader/TocDrawer';
 import { FONTS } from '@/components/Reader/options';
 import SegmentView, { type CommentPara } from '@/components/Reader/SegmentView';
+import PagedView, { type PagedHandle, type PagedTarget } from '@/components/Reader/PagedView';
 import { useTheme, antdConfig } from '@/stores/theme';
 
 // macOS 隐藏式标题栏的红绿灯压在阅读页左上角，工具栏要让开
@@ -35,6 +36,9 @@ export default function Reader() {
   // 拖动进度条时预览的章节序号
   const [preview, setPreview] = useState<number | null>(null);
   const lastTopRef = useRef(0);
+  // 翻页模式的页码，用于右下角进度
+  const [pageInfo, setPageInfo] = useState({ page: 0, count: 1 });
+  const pagedRef = useRef<PagedHandle>(null);
 
   const {
     chapters, segments, currentId, settings,
@@ -43,6 +47,7 @@ export default function Reader() {
   const loggedIn = useAccount((s) => !!s.user);
   const openLogin = useAccount((s) => s.openLogin);
   const bookTitle = useBookshelf((s) => s.items.find((i) => i.book.id === bookId)?.book.title) || '';
+  const paged = settings.readingMode === 'page';
 
   const updateProgress = useBookshelf((s) => s.updateProgress);
   const savePosition = useBookshelf((s) => s.savePosition);
@@ -53,8 +58,8 @@ export default function Reader() {
     const item = useBookshelf.getState().items.find((i) => i.book.id === bookId);
     restoreRef.current = item?.lastReadParaIndex ? { chapterId: item.lastReadChapterId, para: item.lastReadParaIndex } : null;
   }
-  // 章节流重置后要滚到的位置：等目标章正文到了再滚
-  const pendingRef = useRef<{ chapterId: string; para: number } | null>(null);
+  // 章节流重置（或翻页模式换章）后要停的位置：等目标章正文到了再定位
+  const pendingRef = useRef<PagedTarget | null>(null);
   // 视口顶部的那一段及其屏幕位置。章节流在上方增删内容、或改字号后，靠它把位置拉回来
   const anchorRef = useRef<{ el: HTMLElement; top: number } | null>(null);
   // 视口顶部是哪章第几段；滚动停下后再写盘
@@ -96,6 +101,39 @@ export default function Reader() {
       jump(target, r && r.chapterId === target.id ? r.para : 0);
     });
   }, [bookId, chapterId, loadChapters, jump]);
+
+  // 切换滚动 / 翻页：按当前读到的段落重新打开。必须在渲染时就记下位置——
+  // 新模式的视图先挂载，会把 posRef 改写成它的第一页 / 视口顶部。
+  // 还没定位过（刚打开、设置刚读到）就交给新模式去消费待恢复的位置
+  const modeRef = useRef(settings.readingMode);
+  const switchRef = useRef<PagedTarget | null>(null);
+  if (modeRef.current !== settings.readingMode) {
+    modeRef.current = settings.readingMode;
+    const pos = posRef.current;
+    if (!pendingRef.current && pos) {
+      switchRef.current = { chapterId: pos.ch, para: pos.para };
+      // 翻页视图直接消费它；滚动视图要重置章节流，在下面的 effect 里跳
+      pendingRef.current = switchRef.current;
+    }
+  }
+  useEffect(() => {
+    setChromeVisible(!paged);
+    const t = switchRef.current;
+    switchRef.current = null;
+    if (!t || paged) return;
+    const ch = useReader.getState().chapters.find((c) => c.id === t.chapterId);
+    if (ch) jump(ch, t.para);
+  }, [paged, jump]);
+
+  // 翻页模式只渲染当前章，但前后章都要先加载好，翻过章首章末时没有等待
+  useEffect(() => {
+    if (!paged) return;
+    const s = useReader.getState();
+    const i = s.segments.findIndex((g) => g.chapter.id === s.currentId);
+    if (i < 0) return;
+    if (i === s.segments.length - 1) s.appendNext();
+    if (i === 0) useReader.getState().prependPrev();
+  }, [paged, segments, currentId]);
 
   // 当前章变了就更新书架进度（会同步云端）
   useEffect(() => {
@@ -210,8 +248,31 @@ export default function Reader() {
     saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
   };
 
+  /** 翻页模式换章：已加载就直接切过去，否则重置章节流。往回翻进上一章时停在它的最后一页 */
+  const turnChapter = (delta: number, toLast = false) => {
+    const { chapters: list, currentId: cur, segments: segs } = useReader.getState();
+    const target = list[list.findIndex((c) => c.id === cur) + delta];
+    if (!target) return;
+    const goal: PagedTarget = { chapterId: target.id, para: 0, ...(toLast && { edge: 'last' as const }) };
+    if (segs.some((g) => g.chapter.id === target.id)) {
+      pendingRef.current = goal;
+      setCurrent(target.id);
+    } else {
+      jump(target);
+      pendingRef.current = goal;
+    }
+  };
+
+  /** 翻页模式下记下当前页开头的段落，翻停后再写盘 */
+  const onPagedPosition = useCallback((ch: string, para: number) => {
+    posRef.current = { ch, para };
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
+  }, []);
+
   /** 跳到前后章的章首：已经在流里就直接滚过去，否则重置章节流 */
   const goChapter = (delta: number) => {
+    if (paged) return turnChapter(delta);
     const body = bodyRef.current;
     const { chapters: list, currentId: cur, segments: segs } = useReader.getState();
     const target = list[list.findIndex((c) => c.id === cur) + delta];
@@ -240,6 +301,24 @@ export default function Reader() {
       if (e.key === 't' || e.key === 'T') {
         setSettingsOpen(false);
         setTocOpen(true);
+        return;
+      }
+      // 翻页模式：左右、上下、空格、PageUp/PageDown 都是翻页
+      if (paged) {
+        const flip = (dir: 1 | -1) => {
+          e.preventDefault();
+          if (dir > 0) pagedRef.current?.next();
+          else pagedRef.current?.prev();
+        };
+        switch (e.key) {
+          case 'ArrowRight':
+          case 'ArrowDown':
+          case 'PageDown': return flip(1);
+          case 'ArrowLeft':
+          case 'ArrowUp':
+          case 'PageUp': return flip(-1);
+          case ' ': return flip(e.shiftKey ? -1 : 1);
+        }
         return;
       }
       const body = bodyRef.current;
@@ -318,6 +397,27 @@ export default function Reader() {
           </div>
         </div>
 
+        {paged && segments.length > 0 ? (
+          <PagedView
+            ref={pagedRef}
+            seg={segments.find((g) => g.chapter.id === currentId)}
+            settings={settings}
+            fontStack={fontStack}
+            loggedIn={loggedIn}
+            onComment={onComment}
+            onRetry={retry}
+            onLogin={openLogin}
+            pending={pendingRef}
+            onPosition={onPagedPosition}
+            onPageChange={(page, count) => {
+              setPageInfo({ page, count });
+              // 翻页时收起工具栏
+              setChromeVisible(false);
+            }}
+            onEdge={(dir) => turnChapter(dir, dir < 0)}
+            onToggleChrome={() => setChromeVisible((v) => !v)}
+          />
+        ) : (
         <div className="reader-body" ref={bodyRef} onScroll={onScroll}>
           {segments.length === 0 ? (
             <div className="loading">加载中...</div>
@@ -345,10 +445,13 @@ export default function Reader() {
             </div>
           )}
         </div>
+        )}
 
         {curIdx >= 0 && curReady && (
           <div className="reader-progress">
-            第 {curIdx + 1}/{chapters.length} 章 · 本章 {Math.round(progress * 100)}%
+            第 {curIdx + 1}/{chapters.length} 章 · 本章 {paged
+              ? `${pageInfo.page + 1}/${pageInfo.count} 页`
+              : `${Math.round(progress * 100)}%`}
           </div>
         )}
 
