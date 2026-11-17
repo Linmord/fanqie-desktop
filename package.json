@@ -1,6 +1,6 @@
 {
   "name": "fanqie-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "番茄小说 Mac 桌面客户端",
   "main": "electron/main.js",
   "scripts": {
