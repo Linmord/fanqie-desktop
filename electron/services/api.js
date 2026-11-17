@@ -124,11 +124,28 @@ exports.search = async function search(query, page = 0) {
   }
 };
 
+// 书页 HTML 很大，详情页要同时取详情和目录、进阅读页又取一次目录；同一本书 10 分钟内共用一次请求
+const PAGE_TTL = 10 * 60 * 1000;
+const pageCache = new Map();
+
+function getPageState(bookId) {
+  const hit = pageCache.get(bookId);
+  if (hit && Date.now() - hit.at < PAGE_TTL) return hit.task;
+  for (const [id, e] of pageCache) if (Date.now() - e.at >= PAGE_TTL) pageCache.delete(id);
+  const task = webRequest(`/page/${bookId}`).then((html) => {
+    const state = extractState(html);
+    if (!state?.page) throw new Error('书页解析失败');
+    return state;
+  });
+  // 失败的不留，下次重新请求
+  task.catch(() => pageCache.delete(bookId));
+  pageCache.set(bookId, { task, at: Date.now() });
+  return task;
+}
+
 exports.getBookDetail = async function getBookDetail(bookId) {
   try {
-    const html = await webRequest(`/page/${bookId}`);
-    const state = extractState(html);
-    if (!state?.page) return null;
+    const state = await getPageState(bookId);
     return normalizeWebBook(state.page);
   } catch (err) {
     console.error('BookDetail error:', err.message);
@@ -138,10 +155,7 @@ exports.getBookDetail = async function getBookDetail(bookId) {
 
 exports.getChapters = async function getChapters(bookId) {
   try {
-    const html = await webRequest(`/page/${bookId}`);
-    const state = extractState(html);
-    if (!state?.page) return [];
-
+    const state = await getPageState(bookId);
     const page = state.page;
     const volumes = page.chapterListWithVolume || [];
     const chapters = [];
