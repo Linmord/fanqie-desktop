@@ -869,6 +869,8 @@ body {
   font-size: 11px;
   text-indent: 0;
   vertical-align: 2px;
+  /* 选中复制正文时不带上段评数 */
+  user-select: none;
   color: inherit;
   opacity: 0.45;
   background: rgba(127, 127, 127, 0.18);
