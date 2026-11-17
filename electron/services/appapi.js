@@ -534,7 +534,8 @@ function flattenComment(c, isReply = false) {
     text: (cm.content || {}).text || '',
     time: Number(cm.create_timestamp) || 0,
     userName: base.user_name || '番茄用户',
-    avatar: base.user_avatar || '',
+    // 头像多是 http 地址，页面 CSP 只放行 https 图片；这些图床都支持 https
+    avatar: (base.user_avatar || '').replace(/^http:\/\//, 'https://'),
     isAuthor: !!tag.is_author,
     isVip: !!tag.is_vip,
     titles: (tag.user_title_info || []).map(t => t.zh_title).filter(Boolean),
