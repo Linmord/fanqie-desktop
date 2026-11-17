@@ -427,6 +427,12 @@ body {
   cursor: default;
 }
 
+/* 全书进度条：拖动时浮出章节名，松手跳过去 */
+.reader-slider.ant-slider {
+  width: 220px;
+  margin: 0 10px;
+}
+
 /* ---------- 阅读页目录抽屉 ---------- */
 .toc-drawer .ant-drawer-body {
   display: flex;

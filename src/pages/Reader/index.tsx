@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useReader, type Segment } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useAccount } from '@/stores/account';
-import { ConfigProvider, Popover } from 'antd';
+import { ConfigProvider, Popover, Slider } from 'antd';
 import { CommentOutlined, FullscreenExitOutlined, FullscreenOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import type { Chapter } from '@/types';
 import * as api from '@/services/api';
@@ -101,6 +101,8 @@ export default function Reader() {
   const [chromeVisible, setChromeVisible] = useState(true);
   const [fullScreen, setFullScreen] = useState(false);
   const [progress, setProgress] = useState(0);
+  // 拖动进度条时预览的章节序号
+  const [preview, setPreview] = useState<number | null>(null);
   const lastTopRef = useRef(0);
 
   const {
@@ -338,7 +340,7 @@ export default function Reader() {
   const fontStack = FONTS.find((f) => f.value === settings.fontFamily)?.css || FONTS[0].css;
   // 阅读主题只作用于阅读页；antd 浮层（Aa 面板、抽屉）挂在容器内，才能拿到同一套颜色变量
   const readerDark = settings.theme === 'night' || (settings.theme === 'auto' && appDark);
-  const showChrome = chromeVisible || settingsOpen || tocOpen;
+  const showChrome = chromeVisible || settingsOpen || tocOpen || preview !== null;
   const curIdx = chapters.findIndex((c) => c.id === currentId);
   const curChapter = chapters[curIdx];
   const curReady = segments.some((g) => g.chapter.id === currentId && g.status === 'ready');
@@ -413,12 +415,27 @@ export default function Reader() {
         </div>
 
         {curIdx >= 0 && curReady && (
-          <div className="reader-progress">本章 {Math.round(progress * 100)}%</div>
+          <div className="reader-progress">
+            第 {curIdx + 1}/{chapters.length} 章 · 本章 {Math.round(progress * 100)}%
+          </div>
         )}
 
         <div className={`reader-nav${showChrome ? '' : ' hidden'}`}>
           <button onClick={() => setTocOpen(true)}>目录</button>
           <button onClick={() => goChapter(-1)} disabled={curIdx <= 0}>上一章</button>
+          <Slider
+            className="reader-slider"
+            min={0}
+            max={Math.max(0, chapters.length - 1)}
+            value={preview ?? Math.max(0, curIdx)}
+            disabled={chapters.length < 2}
+            tooltip={{ formatter: (v) => (v === undefined ? '' : chapters[v]?.title || '') }}
+            onChange={setPreview}
+            onChangeComplete={(v) => {
+              setPreview(null);
+              if (chapters[v] && v !== curIdx) jump(chapters[v]);
+            }}
+          />
           <button onClick={() => goChapter(1)} disabled={curIdx < 0 || curIdx >= chapters.length - 1}>下一章</button>
         </div>
 
