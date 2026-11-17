@@ -517,6 +517,18 @@ function parseChapterXhtml(xhtml) {
 // =========================================================================
 // 段评：评论和回复结构相同，只是公共块一个叫 common、一个叫 Common
 // =========================================================================
+const https_ = (u) => (u || '').replace(/^http:\/\//, 'https://');
+
+// 配图：web_uri 是 300 宽的缩略图，web_url 是原图；动图（image_type 2）只有一个 dynamic_url
+function commentImages(content) {
+  return ((content.image_data_list || {}).image_data || [])
+    .map((im) => {
+      const url = https_(im.dynamic_url || im.web_url || im.web_uri);
+      return { thumb: https_(im.dynamic_url || im.web_uri) || url, url, width: Number(im.width) || 0, height: Number(im.height) || 0 };
+    })
+    .filter((im) => im.url);
+}
+
 // 回复里的 comment_id 是它所属的一级评论，自己的 id 在 reply_id
 function flattenComment(c, isReply = false) {
   const cm = c.common || c.Common || {};
@@ -532,10 +544,11 @@ function flattenComment(c, isReply = false) {
     serviceId: Number(cm.service_id) || 1,
     liked: !!(c.user_action || {}).user_digg,
     text: (cm.content || {}).text || '',
+    images: commentImages(cm.content || {}),
     time: Number(cm.create_timestamp) || 0,
     userName: base.user_name || '番茄用户',
     // 头像多是 http 地址，页面 CSP 只放行 https 图片；这些图床都支持 https
-    avatar: (base.user_avatar || '').replace(/^http:\/\//, 'https://'),
+    avatar: https_(base.user_avatar),
     isAuthor: !!tag.is_author,
     isVip: !!tag.is_vip,
     titles: (tag.user_title_info || []).map(t => t.zh_title).filter(Boolean),

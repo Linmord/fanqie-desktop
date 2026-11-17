@@ -93,6 +93,8 @@ export interface ParaComment {
   /** 当前登录账号是否赞过 */
   liked: boolean;
   text: string;
+  /** 评论配图：thumb 是缩略图，url 是原图 */
+  images: { thumb: string; url: string; width: number; height: number }[];
   time: number;
   userName: string;
   avatar: string;

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Button, Drawer, Input, Segmented, Spin, message } from 'antd';
+import { Button, Drawer, Image, Input, Segmented, Spin, message } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { LikeFilled, LikeOutlined, UserOutlined } from '@ant-design/icons';
 import type { ParaComment } from '@/types';
@@ -26,6 +26,34 @@ const Ctx = createContext<{ bookId: string; onReply: (root: ParaComment, target:
   bookId: '',
   onReply: () => {},
 });
+
+const IMAGE_BOX = 200;
+
+/** 评论配图：按原比例缩到 200px 以内，点击看原图 */
+function CommentImages({ images }: { images: ParaComment['images'] }) {
+  if (!images?.length) return null;
+  return (
+    <div className="cmt-images">
+      <Image.PreviewGroup>
+        {images.map((im) => {
+          const scale = im.width && im.height ? Math.min(1, IMAGE_BOX / im.width, IMAGE_BOX / im.height) : 0;
+          return (
+            <Image
+              key={im.url}
+              className="cmt-image"
+              src={im.thumb}
+              preview={{ src: im.url }}
+              width={scale ? Math.round(im.width * scale) : undefined}
+              height={scale ? Math.round(im.height * scale) : undefined}
+              referrerPolicy="no-referrer"
+              alt=""
+            />
+          );
+        })}
+      </Image.PreviewGroup>
+    </div>
+  );
+}
 
 function formatTime(ts: number) {
   if (!ts) return '';
@@ -102,6 +130,7 @@ function CommentItem({ c, root, children }: { c: ParaComment; root: ParaComment;
           {c.replyTo && <span className="cmt-reply-to">回复 {c.replyTo}：</span>}
           {c.text}
         </div>
+        <CommentImages images={c.images} />
         <div className="cmt-meta">
           <span>{formatTime(c.time)}</span>
           {c.authorLiked && <span className="cmt-author-liked">作者赞过</span>}
