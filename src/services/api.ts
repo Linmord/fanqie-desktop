@@ -1,0 +1,71 @@
+const isElectron = !!window.electronAPI;
+
+const noop = () => Promise.resolve({ books: [], total: 0, hasMore: false });
+const noopNull = () => Promise.resolve(null);
+const noopArr = () => Promise.resolve([]);
+const noopSettings = () => Promise.resolve({
+  fontSize: 18,
+  lineHeight: 1.8,
+  pageWidth: 720,
+  theme: { name: '默认', bgColor: '#1a1a2e', textColor: '#e0e0e0' },
+  fontFamily: 'system-ui',
+  readingMode: 'scroll' as const,
+});
+
+const fallback: ElectronAPI = {
+  search: noop,
+  bookDetail: noopNull,
+  chapters: noopArr,
+  chapterContent: () => Promise.resolve({ content: '', fontCss: '' }),
+  commentStats: () => Promise.resolve({}),
+  commentList: () => Promise.resolve({ comments: [], cursor: '', hasMore: false, total: 0 }),
+  commentReplies: () => Promise.resolve({ replies: [], cursor: '', hasMore: false }),
+  categories: () => Promise.resolve([]),
+  ranking: noop,
+  getBookshelf: noopArr,
+  addToBookshelf: noopArr as ElectronAPI['addToBookshelf'],
+  removeFromBookshelf: noopArr as ElectronAPI['removeFromBookshelf'],
+  updateBookshelfItem: noopArr as ElectronAPI['updateBookshelfItem'],
+  replaceBookshelf: (items) => Promise.resolve(items),
+  getQrcode: () => Promise.reject(new Error('请在桌面客户端中登录')),
+  checkQrcode: () => Promise.resolve({ status: 'new' as const }),
+  getUser: noopNull,
+  logout: () => Promise.resolve(),
+  getCloudShelf: noopArr,
+  addToCloudShelf: () => Promise.resolve(),
+  removeFromCloudShelf: () => Promise.resolve(),
+  updateCloudProgress: () => Promise.resolve(),
+  getSettings: noopSettings,
+  saveSettings: noopSettings as ElectronAPI['saveSettings'],
+};
+
+const api = isElectron ? window.electronAPI : fallback;
+
+export const search = api.search.bind(api);
+export const bookDetail = api.bookDetail.bind(api);
+export const chapters = api.chapters.bind(api);
+export const chapterContent = api.chapterContent.bind(api);
+export const commentStats = api.commentStats.bind(api);
+export const commentList = api.commentList.bind(api);
+export const commentReplies = api.commentReplies.bind(api);
+export const categories = api.categories.bind(api);
+export const ranking = api.ranking.bind(api);
+
+export const getBookshelf = api.getBookshelf.bind(api);
+export const addToBookshelf = api.addToBookshelf.bind(api);
+export const removeFromBookshelf = api.removeFromBookshelf.bind(api);
+export const updateBookshelfItem = api.updateBookshelfItem.bind(api);
+
+export const replaceBookshelf = api.replaceBookshelf.bind(api);
+
+export const getQrcode = api.getQrcode.bind(api);
+export const checkQrcode = api.checkQrcode.bind(api);
+export const getUser = api.getUser.bind(api);
+export const logout = api.logout.bind(api);
+export const getCloudShelf = api.getCloudShelf.bind(api);
+export const addToCloudShelf = api.addToCloudShelf.bind(api);
+export const removeFromCloudShelf = api.removeFromCloudShelf.bind(api);
+export const updateCloudProgress = api.updateCloudProgress.bind(api);
+
+export const getSettings = api.getSettings.bind(api);
+export const saveSettings = api.saveSettings.bind(api);

@@ -1,0 +1,36 @@
+/// <reference types="vite/client" />
+
+interface ElectronAPI {
+  search(query: string, page?: number): Promise<import('./types').SearchResult>;
+  bookDetail(bookId: string): Promise<import('./types').Book | null>;
+  chapters(bookId: string): Promise<import('./types').Chapter[]>;
+  chapterContent(itemId: string): Promise<import('./types').ChapterContent>;
+  commentStats(itemId: string): Promise<Record<string, number>>;
+  commentList(itemId: string, bookId: string, paraIndex: number, cursor?: string, sort?: number): Promise<import('./types').CommentPage>;
+  commentReplies(commentId: string, cursor?: string): Promise<import('./types').ReplyPage>;
+  categories(): Promise<{ id: string; name: string; children: { id: string; name: string }[] }[]>;
+  ranking(categoryId?: string, page?: number): Promise<import('./types').SearchResult>;
+
+  getBookshelf(): Promise<import('./types').BookshelfItem[]>;
+  addToBookshelf(item: import('./types').BookshelfItem): Promise<import('./types').BookshelfItem[]>;
+  removeFromBookshelf(bookId: string): Promise<import('./types').BookshelfItem[]>;
+  updateBookshelfItem(bookId: string, data: Partial<import('./types').BookshelfItem>): Promise<import('./types').BookshelfItem[]>;
+
+  replaceBookshelf(items: import('./types').BookshelfItem[]): Promise<import('./types').BookshelfItem[]>;
+
+  getQrcode(): Promise<{ token: string; image: string; expireTime: number }>;
+  checkQrcode(token: string): Promise<import('./types').QrcodeStatus>;
+  getUser(): Promise<import('./types').FanqieUser | null>;
+  logout(): Promise<void>;
+  getCloudShelf(): Promise<import('./types').BookshelfItem[]>;
+  addToCloudShelf(bookId: string): Promise<void>;
+  removeFromCloudShelf(bookId: string): Promise<void>;
+  updateCloudProgress(bookId: string, itemId: string, index: number, progress: number): Promise<void>;
+
+  getSettings(): Promise<import('./types').ReaderSettings>;
+  saveSettings(settings: import('./types').ReaderSettings): Promise<import('./types').ReaderSettings>;
+}
+
+interface Window {
+  electronAPI: ElectronAPI;
+}
