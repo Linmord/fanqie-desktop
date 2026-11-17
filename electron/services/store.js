@@ -89,3 +89,21 @@ exports.saveAppearance = function (mode) {
   writeJSON('appearance.json', value);
   return value;
 };
+
+const defaultMoyu = {
+  bounds: null,
+  opacity: 0,
+  fontSize: 15,
+  color: 'dark',
+};
+
+/** 摸鱼窗口的位置、大小和外观，单独一个文件 */
+exports.getMoyu = function () {
+  return { ...defaultMoyu, ...readJSON('moyu.json', {}) };
+};
+
+exports.saveMoyu = function (patch) {
+  const value = { ...exports.getMoyu(), ...patch };
+  writeJSON('moyu.json', value);
+  return value;
+};

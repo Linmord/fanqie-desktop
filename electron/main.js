@@ -4,6 +4,8 @@ const api = require('./services/api');
 const { FanqieAppApi } = require('./services/appapi');
 const store = require('./services/store');
 const account = require('./services/account');
+const bossKey = require('./bosskey');
+const moyu = require('./moyu');
 
 let mainWindow;
 
@@ -11,6 +13,14 @@ let mainWindow;
 const windowBg = () => (nativeTheme.shouldUseDarkColors ? '#262624' : '#FAF9F5');
 const appApi = new FanqieAppApi();
 appApi.getCookie = () => account.getCookieHeader();
+
+const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
+
+/** 页面用 HashRouter，route 形如 /moyu/123/456?para=3 */
+function loadRoute(win, route) {
+  if (isDev) win.loadURL(`http://localhost:5173/#${route}`);
+  else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), { hash: route });
+}
 
 function createWindow() {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -37,12 +47,8 @@ function createWindow() {
     },
   });
 
-  if (process.env.NODE_ENV !== 'production' && !app.isPackaged) {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  }
+  loadRoute(mainWindow, '/');
+  if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
 
   // 阅读页的全屏按钮要跟随实际状态（也可能是用户点了绿灯进入全屏）
   const sendFullScreen = () => mainWindow.webContents.send('window:fullscreen', mainWindow.isFullScreen());
@@ -60,6 +66,8 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = store.getAppearance();
   nativeTheme.on('updated', () => mainWindow?.setBackgroundColor(windowBg()));
   createWindow();
+  bossKey.register();
+  moyu.setup({ getMainWindow: () => mainWindow, loadRoute });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -182,6 +190,7 @@ ipcMain.handle('window:toggleFullScreen', (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   if (win) win.setFullScreen(!win.isFullScreen());
 });
+ipcMain.handle('app:bossKeyRegistered', () => bossKey.isRegistered());
 ipcMain.handle('app:getAppearance', () => store.getAppearance());
 ipcMain.handle('app:setAppearance', (_e, mode) => {
   const saved = store.saveAppearance(mode);

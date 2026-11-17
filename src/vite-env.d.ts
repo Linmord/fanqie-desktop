@@ -36,8 +36,19 @@ interface ElectronAPI {
   saveSettings(settings: import('./types').ReaderSettings): Promise<import('./types').ReaderSettings>;
   getAppearance(): Promise<import('./types').Appearance>;
   setAppearance(mode: import('./types').Appearance): Promise<import('./types').Appearance>;
+  /** 老板键 ⌥+Q 是否注册成功（被其他 App 占用时为 false） */
+  bossKeyRegistered(): Promise<boolean>;
   isFullScreen(): Promise<boolean>;
   toggleFullScreen(): Promise<void>;
+  /** 打开摸鱼窗口，从这一章的第 para 段接着读，主窗口随之隐藏 */
+  openMoyu(bookId: string, chapterId: string, para: number): Promise<void>;
+  /** 关闭摸鱼窗口，主窗口回来并收到 onMoyuExit */
+  closeMoyu(chapterId: string, para: number): Promise<void>;
+  setMoyuBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<void>;
+  getMoyuPrefs(): Promise<import('./types').MoyuPrefs>;
+  saveMoyuPrefs(patch: Partial<import('./types').MoyuPrefs>): Promise<import('./types').MoyuPrefs>;
+  /** 返回取消监听的函数 */
+  onMoyuExit(cb: (pos: { chapterId: string; para: number }) => void): () => void;
   /** 返回取消监听的函数 */
   onFullScreenChange(cb: (fullScreen: boolean) => void): () => void;
 }

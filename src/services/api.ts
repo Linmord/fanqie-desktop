@@ -44,6 +44,13 @@ const fallback: ElectronAPI = {
   saveSettings: noopSettings as ElectronAPI['saveSettings'],
   getAppearance: () => Promise.resolve('system' as const),
   setAppearance: (mode) => Promise.resolve(mode),
+  bossKeyRegistered: () => Promise.resolve(true),
+  openMoyu: () => Promise.resolve(),
+  closeMoyu: () => Promise.resolve(),
+  setMoyuBounds: () => Promise.resolve(),
+  getMoyuPrefs: () => Promise.resolve({ bounds: null, opacity: 0, fontSize: 15, color: 'dark' as const }),
+  saveMoyuPrefs: (patch) => Promise.resolve({ bounds: null, opacity: 0, fontSize: 15, color: 'dark' as const, ...patch }),
+  onMoyuExit: () => () => {},
   // 浏览器里预览时退回网页全屏
   isFullScreen: () => Promise.resolve(!!document.fullscreenElement),
   toggleFullScreen: () =>
@@ -92,6 +99,14 @@ export const getSettings = api.getSettings.bind(api);
 export const saveSettings = api.saveSettings.bind(api);
 export const getAppearance = api.getAppearance.bind(api);
 export const setAppearance = api.setAppearance.bind(api);
+export const bossKeyRegistered = api.bossKeyRegistered.bind(api);
 export const isFullScreen = api.isFullScreen.bind(api);
 export const toggleFullScreen = api.toggleFullScreen.bind(api);
 export const onFullScreenChange = api.onFullScreenChange.bind(api);
+
+export const openMoyu = api.openMoyu.bind(api);
+export const closeMoyu = api.closeMoyu.bind(api);
+export const setMoyuBounds = api.setMoyuBounds.bind(api);
+export const getMoyuPrefs = api.getMoyuPrefs.bind(api);
+export const saveMoyuPrefs = api.saveMoyuPrefs.bind(api);
+export const onMoyuExit = api.onMoyuExit.bind(api);

@@ -90,6 +90,12 @@ export default function Reader() {
     openAt(chapter);
   }, [openAt]);
 
+  // 从摸鱼窗口回来：从那边读到的章节和段落重新打开章节流
+  useEffect(() => api.onMoyuExit(({ chapterId: ch, para }) => {
+    const target = useReader.getState().chapters.find((c) => c.id === ch);
+    if (target) jump(target, para);
+  }), [jump]);
+
   useEffect(() => {
     if (!bookId) return;
     loadChapters(bookId).then(() => {
@@ -377,6 +383,19 @@ export default function Reader() {
           </button>
           <span className="reader-title">{curChapter?.title || ''}</span>
           <div className="reader-tools">
+            <button
+              className="reader-tool"
+              title="摸鱼：透明小窗只显示正文，⌥+Q 一键隐藏"
+              onClick={() => {
+                const pos = posRef.current;
+                if (!bookId || !pos) return;
+                // 先把章内位置写盘，摸鱼窗口从同一段接着读
+                savePosRef.current();
+                api.openMoyu(bookId, pos.ch, pos.para);
+              }}
+            >
+              摸鱼
+            </button>
             <button
               className="reader-tool"
               title={fullScreen ? '退出全屏（F）' : '全屏（F）'}

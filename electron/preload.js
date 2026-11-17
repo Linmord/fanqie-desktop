@@ -41,8 +41,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.invoke('store:saveSettings', settings),
   getAppearance: () => ipcRenderer.invoke('app:getAppearance'),
   setAppearance: (mode) => ipcRenderer.invoke('app:setAppearance', mode),
+  bossKeyRegistered: () => ipcRenderer.invoke('app:bossKeyRegistered'),
   isFullScreen: () => ipcRenderer.invoke('window:isFullScreen'),
   toggleFullScreen: () => ipcRenderer.invoke('window:toggleFullScreen'),
+  openMoyu: (bookId, chapterId, para) => ipcRenderer.invoke('moyu:open', bookId, chapterId, para),
+  closeMoyu: (chapterId, para) => ipcRenderer.invoke('moyu:close', chapterId, para),
+  setMoyuBounds: (bounds) => ipcRenderer.invoke('moyu:setBounds', bounds),
+  getMoyuPrefs: () => ipcRenderer.invoke('moyu:getPrefs'),
+  saveMoyuPrefs: (patch) => ipcRenderer.invoke('moyu:savePrefs', patch),
+  onMoyuExit: (cb) => {
+    const listener = (_e, pos) => cb(pos);
+    ipcRenderer.on('moyu:exit', listener);
+    return () => ipcRenderer.removeListener('moyu:exit', listener);
+  },
   onFullScreenChange: (cb) => {
     const listener = (_e, value) => cb(value);
     ipcRenderer.on('window:fullscreen', listener);
