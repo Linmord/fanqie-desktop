@@ -119,3 +119,11 @@ export interface ReplyPage {
   cursor: string;
   hasMore: boolean;
 }
+
+/** 摸鱼窗口的位置大小和外观；opacity 是底色不透明度 0~0.6，color 是文字颜色 */
+export interface MoyuPrefs {
+  bounds: { x: number; y: number; width: number; height: number } | null;
+  opacity: number;
+  fontSize: number;
+  color: 'light' | 'dark';
+}

@@ -1385,3 +1385,102 @@ body {
 .reader-text::selection {
   background: var(--accent-soft);
 }
+
+/* ---------- 摸鱼窗口：背景透明，只浮着正文 ---------- */
+html.moyu-window,
+html.moyu-window body {
+  background: transparent;
+}
+
+.moyu {
+  --moyu-text: #1F1E1D;
+  --moyu-shadow: 0 0 2px rgba(255, 255, 255, 0.9), 0 0 6px rgba(255, 255, 255, 0.6);
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 8px;
+  overflow: hidden;
+  user-select: none;
+  color: var(--moyu-text);
+}
+
+.moyu.light {
+  --moyu-text: #F5F3EC;
+  --moyu-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+.moyu-body {
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px 12px;
+  text-shadow: var(--moyu-shadow);
+  cursor: default;
+}
+
+.moyu-body::-webkit-scrollbar {
+  display: none;
+}
+
+.moyu-title {
+  margin: 4px 0 2px;
+  font-size: 0.8em;
+  opacity: 0.6;
+}
+
+.moyu-para {
+  margin: 0;
+  text-indent: 2em;
+  text-align: justify;
+}
+
+.moyu-bar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-radius: 8px;
+  background: rgba(31, 30, 29, 0.85);
+  color: #E8E6DC;
+  font-size: 12px;
+  transition: opacity 0.2s;
+}
+
+.moyu-bar button {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.moyu-bar button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.moyu-bar input[type='range'] {
+  width: 64px;
+  accent-color: #D97757;
+}
+
+.moyu-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(128, 128, 128, 0.6) 50%);
+  border-bottom-right-radius: 8px;
+  transition: opacity 0.2s;
+}
+
+.moyu-bar.hidden,
+.moyu-resize.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
