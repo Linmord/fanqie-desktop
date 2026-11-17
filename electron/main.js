@@ -5,6 +5,7 @@ const { FanqieAppApi } = require('./services/appapi');
 const store = require('./services/store');
 const account = require('./services/account');
 const chapterCache = require('./services/chaptercache');
+const updater = require('./services/updater');
 
 let mainWindow;
 
@@ -62,6 +63,7 @@ app.whenReady().then(() => {
   nativeTheme.on('updated', () => mainWindow?.setBackgroundColor(windowBg()));
   createWindow();
   chapterCache.prune();
+  updater.checkForUpdates(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
