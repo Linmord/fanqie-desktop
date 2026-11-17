@@ -17,6 +17,9 @@
   --hover-bg: rgba(61, 57, 41, 0.05);
   --active-bg: rgba(61, 57, 41, 0.08);
   --danger: #B5412F;
+  /* 界面用无衬线，书名、简介、正文用衬线；Georgia 在前，西文和数字落到 Georgia */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-serif: Georgia, 'Songti SC', 'STSong', 'Noto Serif CJK SC', 'SimSun', serif;
   color-scheme: light;
 }
 
@@ -44,7 +47,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg-primary);
   color: var(--text-primary);
   overflow: hidden;
@@ -145,6 +148,7 @@ body {
 }
 
 .book-title {
+  font-family: var(--font-serif);
   margin-top: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -195,6 +199,7 @@ body {
 }
 
 .page-title {
+  font-family: var(--font-serif);
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 20px;
@@ -333,6 +338,7 @@ body {
 }
 
 .detail-title {
+  font-family: var(--font-serif);
   font-size: 24px;
   font-weight: 600;
 }
@@ -345,6 +351,7 @@ body {
 }
 
 .detail-desc {
+  font-family: var(--font-serif);
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
