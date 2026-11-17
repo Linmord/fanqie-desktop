@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useReader } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useAccount } from '@/stores/account';
 import { ConfigProvider, Popover, Slider } from 'antd';
 import { FullscreenExitOutlined, FullscreenOutlined, UnorderedListOutlined } from '@ant-design/icons';
-import type { Chapter } from '@/types';
+import type { Bookmark, Chapter } from '@/types';
 import * as api from '@/services/api';
 import CommentDrawer from '@/components/CommentDrawer';
 import SettingsPanel from '@/components/Reader/SettingsPanel';
 import TocDrawer from '@/components/Reader/TocDrawer';
 import { FONTS } from '@/components/Reader/options';
+import { splitParagraphs } from '@/components/Reader/text';
+import { BookmarkIcon } from '@/components/Reader/BookmarkIcon';
 import SegmentView, { type CommentPara } from '@/components/Reader/SegmentView';
 import PagedView, { type PagedHandle, type PagedTarget } from '@/components/Reader/PagedView';
 import { useTheme, antdConfig } from '@/stores/theme';
@@ -47,6 +49,9 @@ export default function Reader() {
   const loggedIn = useAccount((s) => !!s.user);
   const openLogin = useAccount((s) => s.openLogin);
   const bookTitle = useBookshelf((s) => s.items.find((i) => i.book.id === bookId)?.book.title) || '';
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  // 当前位置（章 id:段号），书签按钮据此高亮。字符串相同时 setState 不会重渲染
+  const [posKey, setPosKey] = useState('');
   const paged = settings.readingMode === 'page';
 
   const updateProgress = useBookshelf((s) => s.updateProgress);
@@ -141,6 +146,49 @@ export default function Reader() {
     if (i === 0) useReader.getState().prependPrev();
   }, [paged, segments, currentId]);
 
+  useEffect(() => {
+    if (bookId) api.getBookmarks(bookId).then(setBookmarks);
+  }, [bookId]);
+
+  // 每章有书签的段号，给正文画标记；没变的章沿用同一个 Set，段落不必重渲染
+  const marks = useMemo(() => {
+    const m = new Map<string, Set<number>>();
+    bookmarks.forEach((b) => (m.get(b.chapterId) || m.set(b.chapterId, new Set()).get(b.chapterId)!).add(b.para));
+    return m;
+  }, [bookmarks]);
+  const marked = bookmarks.some((b) => `${b.chapterId}:${b.para}` === posKey);
+
+  /** 当前位置有书签就删掉，没有就加上 */
+  const toggleBookmark = () => {
+    const pos = posRef.current;
+    if (!bookId || !pos) return;
+    const { chapters: list, segments: segs } = useReader.getState();
+    let next: Bookmark[];
+    if (bookmarks.some((b) => b.chapterId === pos.ch && b.para === pos.para)) {
+      next = bookmarks.filter((b) => !(b.chapterId === pos.ch && b.para === pos.para));
+    } else {
+      const seg = segs.find((g) => g.chapter.id === pos.ch);
+      const text = seg ? splitParagraphs(seg.content).find((p) => p.line >= pos.para)?.text || '' : '';
+      const order = (id: string) => list.findIndex((c) => c.id === id);
+      next = [...bookmarks, {
+        chapterId: pos.ch,
+        chapterTitle: list.find((c) => c.id === pos.ch)?.title || '',
+        para: pos.para,
+        excerpt: text.slice(0, 40),
+        createdAt: Date.now(),
+      }].sort((a, b) => order(a.chapterId) - order(b.chapterId) || a.para - b.para);
+    }
+    setBookmarks(next);
+    api.saveBookmarks(bookId, next);
+  };
+
+  const removeBookmark = (bm: Bookmark) => {
+    if (!bookId) return;
+    const next = bookmarks.filter((b) => b !== bm);
+    setBookmarks(next);
+    api.saveBookmarks(bookId, next);
+  };
+
   // 当前章变了就更新书架进度（会同步云端）
   useEffect(() => {
     if (!bookId || !currentId) return;
@@ -186,6 +234,7 @@ export default function Reader() {
     anchorRef.current = { el: a, top: a.getBoundingClientRect().top };
     const ch = a.dataset.ch!;
     posRef.current = { ch, para: Number(a.dataset.para) || 0 };
+    setPosKey(`${ch}:${posRef.current.para}`);
     setCurrent(ch);
     const seg = body.querySelector<HTMLElement>(`[data-seg="${CSS.escape(ch)}"]`);
     if (seg) {
@@ -272,6 +321,7 @@ export default function Reader() {
   /** 翻页模式下记下当前页开头的段落，翻停后再写盘 */
   const onPagedPosition = useCallback((ch: string, para: number) => {
     posRef.current = { ch, para };
+    setPosKey(`${ch}:${para}`);
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
   }, []);
@@ -302,6 +352,10 @@ export default function Reader() {
       }
       if (e.key === 'f' || e.key === 'F') {
         api.toggleFullScreen();
+        return;
+      }
+      if (e.key === 'b' || e.key === 'B') {
+        toggleBookmark();
         return;
       }
       if (e.key === 't' || e.key === 'T') {
@@ -388,6 +442,13 @@ export default function Reader() {
           <span className="reader-title">{curChapter?.title || ''}</span>
           <div className="reader-tools">
             <button
+              className={`reader-tool${marked ? ' marked' : ''}`}
+              title={marked ? '删除书签（B）' : '添加书签（B）'}
+              onClick={toggleBookmark}
+            >
+              <BookmarkIcon filled={marked} />
+            </button>
+            <button
               className="reader-tool"
               title="摸鱼：透明小窗只显示正文，⌥+Q 一键隐藏"
               onClick={() => {
@@ -439,6 +500,7 @@ export default function Reader() {
             }}
             onEdge={(dir) => turnChapter(dir, dir < 0)}
             onToggleChrome={() => setChromeVisible((v) => !v)}
+            marked={marks.get(currentId)}
           />
         ) : (
         <div className="reader-body" ref={bodyRef} onScroll={onScroll}>
@@ -463,6 +525,7 @@ export default function Reader() {
                   onComment={onComment}
                   onRetry={retry}
                   onLogin={openLogin}
+                  marked={marks.get(seg.chapter.id)}
                 />
               ))}
             </div>
@@ -504,6 +567,12 @@ export default function Reader() {
           chapters={chapters}
           currentId={currentId}
           onSelect={(c) => c.id !== currentId && jump(c)}
+          bookmarks={bookmarks}
+          onSelectBookmark={(b) => {
+            const ch = chapters.find((c) => c.id === b.chapterId);
+            if (ch) jump(ch, b.para);
+          }}
+          onRemoveBookmark={removeBookmark}
           topInset={isMac && !fullScreen}
         />
 

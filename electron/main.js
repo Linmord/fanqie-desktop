@@ -183,6 +183,8 @@ ipcMain.handle('account:updateCloudProgress', (_e, bookId, itemId, index, progre
 ipcMain.handle('store:replaceBookshelf', (_e, items) => store.replaceBookshelf(items));
 
 // --- IPC: 设置 ---
+ipcMain.handle('store:getBookmarks', (_e, bookId) => store.getBookmarks(String(bookId)));
+ipcMain.handle('store:saveBookmarks', (_e, bookId, list) => store.saveBookmarks(String(bookId), list));
 ipcMain.handle('store:getSettings', () => store.getSettings());
 ipcMain.handle('store:saveSettings', (_e, settings) => store.saveSettings(settings));
 ipcMain.handle('window:isFullScreen', (e) => !!BrowserWindow.fromWebContents(e.sender)?.isFullScreen());

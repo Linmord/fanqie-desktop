@@ -31,6 +31,7 @@ interface Props {
   /** 翻过本章第一页或最后一页 */
   onEdge: (dir: 1 | -1) => void;
   onToggleChrome: () => void;
+  marked?: Set<number>;
 }
 
 /** 两页之间、栏与栏之间的空隙 */
@@ -205,6 +206,7 @@ const PagedView = forwardRef<PagedHandle, Props>(function PagedView(props, ref) 
               onComment={props.onComment}
               onRetry={props.onRetry}
               onLogin={props.onLogin}
+              marked={props.marked}
             />
           )}
         </div>

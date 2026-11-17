@@ -53,6 +53,16 @@ export type ReaderFontId = 'serif' | 'sans' | 'kai';
 export type ReadingMode = 'scroll' | 'page';
 
 /** 阅读器设置 */
+/** 书签：记到某章某一段（原始行号），只存本地 */
+export interface Bookmark {
+  chapterId: string;
+  chapterTitle: string;
+  para: number;
+  /** 段首摘录 */
+  excerpt: string;
+  createdAt: number;
+}
+
 export interface ReaderSettings {
   fontSize: number;
   lineHeight: number;
