@@ -311,3 +311,42 @@ exports.getRecommend = async function getRecommend() {
     return [];
   }
 };
+
+// =========================================================================
+// 段评表情：番茄没有公开的表情接口，借用抖音网页版的表情图（同属字节，名称大多一致）
+// =========================================================================
+// 番茄有、抖音叫法不同的表情
+const EMOJI_ALIASES = {
+  '[吃瓜]': '[吃瓜群众]',
+  '[酷]': '[酷拽]',
+  '[哭]': '[流泪]',
+  '[笑]': '[微笑]',
+  '[爱慕]': '[色]',
+  '[盯]': '[看]',
+};
+let emojiTask = null;
+
+/** { '[偷笑]': 图片地址 }；拉取失败返回空表，下次再试 */
+exports.getEmojis = function getEmojis() {
+  if (!emojiTask) {
+    emojiTask = fetchBuffer('https://www.douyin.com/aweme/v1/web/emoji/list')
+      .then((buf) => {
+        const map = {};
+        for (const e of JSON.parse(buf.toString('utf-8')).emoji_list || []) {
+          const url = ((e.emoji_url || {}).url_list || [])[0];
+          if (e.display_name && url) map[e.display_name] = url;
+        }
+        for (const [name, target] of Object.entries(EMOJI_ALIASES)) {
+          if (!map[name] && map[target]) map[name] = map[target];
+        }
+        if (Object.keys(map).length === 0) throw new Error('表情列表为空');
+        return map;
+      })
+      .catch((err) => {
+        console.error('Emoji error:', err.message);
+        emojiTask = null;
+        return {};
+      });
+  }
+  return emojiTask;
+};

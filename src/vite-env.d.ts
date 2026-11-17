@@ -11,6 +11,7 @@ interface ElectronAPI {
   commentAdd(itemId: string, bookId: string, paraIndex: number, paraText: string, text: string): Promise<import('./types').ParaComment>;
   commentReply(itemId: string, bookId: string, paraIndex: number, paraText: string, rootId: string, toUserId: string, text: string, toReplyId?: string): Promise<import('./types').ParaComment>;
   commentDigg(bookId: string, id: string, like: boolean, isReply: boolean, serviceId: number): Promise<void>;
+  commentEmojis(): Promise<Record<string, string>>;
   categories(): Promise<{ id: string; name: string; children: { id: string; name: string }[] }[]>;
   ranking(rankId?: string, page?: number): Promise<import('./types').SearchResult>;
   recommend(): Promise<{ title: string; books: import('./types').Book[] }[]>;
