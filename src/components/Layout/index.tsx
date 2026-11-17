@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Avatar, Dropdown, Tooltip } from 'antd';
 import {
@@ -9,10 +9,12 @@ import {
   DesktopOutlined,
   SunOutlined,
   MoonOutlined,
+  GithubOutlined,
 } from '@ant-design/icons';
 import { useAccount } from '@/stores/account';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useTheme, appearanceLabel } from '@/stores/theme';
+import AboutModal from '@/components/AboutModal';
 
 const appearanceIcon = {
   system: <DesktopOutlined />,
@@ -29,6 +31,7 @@ const navItems = [
 export default function Layout() {
   const { user, ready, init, openLogin, logout } = useAccount();
   const { appearance, cycle } = useTheme();
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // 启动时恢复登录态，再加载书架（登录了就顺带拉一次云书架）
   useEffect(() => {
@@ -84,8 +87,14 @@ export default function Layout() {
               {appearanceIcon[appearance]}
             </button>
           </Tooltip>
+          <Tooltip title="开源与关于" placement="top">
+            <button className="appearance-btn" onClick={() => setAboutOpen(true)}>
+              <GithubOutlined />
+            </button>
+          </Tooltip>
         </div>
       </aside>
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <main className="content">
         <Outlet />
       </main>
