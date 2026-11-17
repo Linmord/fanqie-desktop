@@ -10,6 +10,8 @@ const noopSettings = () => Promise.resolve({
   theme: 'auto' as const,
   fontFamily: 'serif' as const,
   readingMode: 'scroll' as const,
+  paraSpacing: 0.6,
+  indent: true,
 });
 
 const fallback: ElectronAPI = {
@@ -40,6 +42,8 @@ const fallback: ElectronAPI = {
   addToCloudShelf: () => Promise.resolve(),
   removeFromCloudShelf: () => Promise.resolve(),
   updateCloudProgress: () => Promise.resolve(),
+  getBookmarks: noopArr,
+  saveBookmarks: (_id, list) => Promise.resolve(list),
   getSettings: noopSettings,
   saveSettings: noopSettings as ElectronAPI['saveSettings'],
   getAppearance: () => Promise.resolve('system' as const),
@@ -95,6 +99,8 @@ export const addToCloudShelf = api.addToCloudShelf.bind(api);
 export const removeFromCloudShelf = api.removeFromCloudShelf.bind(api);
 export const updateCloudProgress = api.updateCloudProgress.bind(api);
 
+export const getBookmarks = api.getBookmarks.bind(api);
+export const saveBookmarks = api.saveBookmarks.bind(api);
 export const getSettings = api.getSettings.bind(api);
 export const saveSettings = api.saveSettings.bind(api);
 export const getAppearance = api.getAppearance.bind(api);

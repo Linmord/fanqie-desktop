@@ -13,6 +13,8 @@ export interface PagedTarget {
 export interface PagedHandle {
   next: () => void;
   prev: () => void;
+  /** 翻到这段文字所在的页（章内搜索用） */
+  reveal: (range: Range) => void;
 }
 
 interface Props {
@@ -31,6 +33,7 @@ interface Props {
   /** 翻过本章第一页或最后一页 */
   onEdge: (dir: 1 | -1) => void;
   onToggleChrome: () => void;
+  marked?: Set<number>;
 }
 
 /** 两页之间、栏与栏之间的空隙 */
@@ -124,7 +127,7 @@ const PagedView = forwardRef<PagedHandle, Props>(function PagedView(props, ref) 
     setAnimate(false);
     setCount(total);
     setPage(Math.min(p, total - 1));
-  }, [seg, pageW, spread, viewH, settings.fontSize, settings.lineHeight, settings.fontFamily]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [seg, pageW, spread, viewH, settings.fontSize, settings.lineHeight, settings.fontFamily, settings.paraSpacing, settings.indent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 翻到新的一页：记下这页开头的段落，报告页码
   useEffect(() => {
@@ -155,7 +158,18 @@ const PagedView = forwardRef<PagedHandle, Props>(function PagedView(props, ref) 
     setPage(nextPage);
   };
 
-  useImperativeHandle(ref, () => ({ next: () => flip(1), prev: () => flip(-1) }));
+  const reveal = (range: Range) => {
+    const inner = innerRef.current;
+    const r = range.getClientRects()[0];
+    if (!inner || !r) return;
+    const p = Math.floor((r.left - inner.getBoundingClientRect().left + 1) / step);
+    if (p === pageRef.current.page || p < 0 || p >= pageRef.current.count) return;
+    keepAnchor.current = false;
+    setAnimate(true);
+    setPage(p);
+  };
+
+  useImperativeHandle(ref, () => ({ next: () => flip(1), prev: () => flip(-1), reveal }));
 
   // 点左右三分之一翻页，点中间切换工具栏；点到按钮或正在选字时不处理
   const onClick = (e: React.MouseEvent) => {
@@ -205,6 +219,7 @@ const PagedView = forwardRef<PagedHandle, Props>(function PagedView(props, ref) 
               onComment={props.onComment}
               onRetry={props.onRetry}
               onLogin={props.onLogin}
+              marked={props.marked}
             />
           )}
         </div>

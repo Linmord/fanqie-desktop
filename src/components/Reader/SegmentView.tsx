@@ -14,8 +14,10 @@ function scopeFont(css: string, chapterId: string) {
 }
 
 /** 一章正文。滚动模式下是章节流里的一段，翻页模式下单独分页；单独 memo，更新进度时不重渲染段落 */
-const SegmentView = memo(function SegmentView({ seg, fontStack, loggedIn, onComment, onRetry, onLogin }: {
+const SegmentView = memo(function SegmentView({ seg, fontStack, loggedIn, onComment, onRetry, onLogin, marked }: {
   seg: Segment;
+  /** 本章有书签的段号 */
+  marked?: Set<number>;
   fontStack: string;
   loggedIn: boolean;
   onComment: (p: CommentPara) => void;
@@ -30,7 +32,7 @@ const SegmentView = memo(function SegmentView({ seg, fontStack, loggedIn, onComm
       data-seg={chapter.id}
       style={font ? { fontFamily: `"${font.family}", ${fontStack}` } : undefined}
     >
-      <h2 className="reader-chapter-title reader-anchor" data-ch={chapter.id} data-para={0}>
+      <h2 className={`reader-chapter-title reader-anchor${marked?.has(0) ? ' marked' : ''}`} data-ch={chapter.id} data-para={0}>
         {chapter.title}
       </h2>
       {/* 放在标题后面，标题才是 first-child，不多出上边距 */}
@@ -50,7 +52,7 @@ const SegmentView = memo(function SegmentView({ seg, fontStack, loggedIn, onComm
         const idx = paraIdx[i] ?? -1;
         const count = commentStats[idx] || 0;
         return (
-          <p key={i} className="reader-para reader-anchor" data-ch={chapter.id} data-para={i}>
+          <p key={i} className={`reader-para reader-anchor${marked?.has(i) ? ' marked' : ''}`} data-ch={chapter.id} data-para={i}>
             {idx >= 0 ? (
               <>
                 {text.slice(0, -1)}

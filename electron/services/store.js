@@ -65,6 +65,21 @@ const defaultSettings = {
   theme: 'auto',
   fontFamily: 'serif',
   readingMode: 'scroll',
+  paraSpacing: 0.6,
+  indent: true,
+};
+
+// 书签只存本地：{ [bookId]: Bookmark[] }
+exports.getBookmarks = function (bookId) {
+  return readJSON('bookmarks.json', {})[bookId] || [];
+};
+
+exports.saveBookmarks = function (bookId, list) {
+  const all = readJSON('bookmarks.json', {});
+  if (list.length) all[bookId] = list;
+  else delete all[bookId];
+  writeJSON('bookmarks.json', all);
+  return list;
 };
 
 exports.getSettings = function () {

@@ -22,6 +22,8 @@ interface ElectronAPI {
   updateBookshelfItem(bookId: string, data: Partial<import('./types').BookshelfItem>): Promise<import('./types').BookshelfItem[]>;
 
   replaceBookshelf(items: import('./types').BookshelfItem[]): Promise<import('./types').BookshelfItem[]>;
+  getBookmarks(bookId: string): Promise<import('./types').Bookmark[]>;
+  saveBookmarks(bookId: string, list: import('./types').Bookmark[]): Promise<import('./types').Bookmark[]>;
 
   getQrcode(): Promise<{ token: string; image: string; expireTime: number }>;
   checkQrcode(token: string): Promise<import('./types').QrcodeStatus>;

@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateCloudProgress: (bookId, itemId, index, progress) =>
     ipcRenderer.invoke('account:updateCloudProgress', bookId, itemId, index, progress),
 
+  getBookmarks: (bookId) => ipcRenderer.invoke('store:getBookmarks', bookId),
+  saveBookmarks: (bookId, list) => ipcRenderer.invoke('store:saveBookmarks', bookId, list),
   getSettings: () => ipcRenderer.invoke('store:getSettings'),
   saveSettings: (settings) => ipcRenderer.invoke('store:saveSettings', settings),
   getAppearance: () => ipcRenderer.invoke('app:getAppearance'),

@@ -13,6 +13,17 @@ export const LINE_HEIGHTS = [
   { value: 2.1, label: '宽松' },
 ];
 
+export const PARA_SPACINGS = [
+  { value: 0.3, label: '紧凑' },
+  { value: 0.6, label: '标准' },
+  { value: 1, label: '宽松' },
+];
+
+export const INDENTS = [
+  { value: 'on', label: '空两字' },
+  { value: 'off', label: '顶格' },
+];
+
 export const PAGE_WIDTHS = [
   { value: 600, label: '窄' },
   { value: 720, label: '中' },
@@ -40,6 +51,8 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   theme: 'auto',
   fontFamily: 'serif',
   readingMode: 'scroll',
+  paraSpacing: 0.6,
+  indent: true,
 };
 
 const pick = <T,>(list: { value: T }[], v: unknown, fallback: T): T =>
@@ -56,5 +69,7 @@ export function normalizeSettings(raw: Partial<Record<keyof ReaderSettings, unkn
     theme: pick(THEMES, raw?.theme, d.theme),
     fontFamily: pick(FONTS, raw?.fontFamily, d.fontFamily),
     readingMode: pick(READING_MODES, raw?.readingMode, d.readingMode),
+    paraSpacing: pick(PARA_SPACINGS, raw?.paraSpacing, d.paraSpacing),
+    indent: typeof raw?.indent === 'boolean' ? raw.indent : d.indent,
   };
 }
