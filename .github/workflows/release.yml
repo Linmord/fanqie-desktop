@@ -47,6 +47,8 @@ jobs:
             release/*.zip
             release/*.exe
             release/*.AppImage
+            release/*.blockmap
+            release/latest*.yml
           if-no-files-found: error
 
   release:
