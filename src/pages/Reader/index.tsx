@@ -240,9 +240,7 @@ export default function Reader() {
                 ['--reader-width' as string]: `${settings.pageWidth}px`,
               }}
             >
-              <h2 style={{ fontSize: settings.fontSize + 4, marginBottom: 24, fontWeight: 600 }}>
-                {currentChapter?.title}
-              </h2>
+              <h2 className="reader-chapter-title">{currentChapter?.title}</h2>
               {content
                 ? splitParagraphs(content).map(({ text, line: i }) => {
                   const idx = paraIdx[i] ?? -1;

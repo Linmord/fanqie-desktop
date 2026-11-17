@@ -336,6 +336,19 @@ body {
   text-autospace: normal;
 }
 
+/* 章标题：靠留白和正文、上一章分开；第一个标题贴着页面顶部的内边距 */
+.reader-chapter-title {
+  margin: 2em 0 1em;
+  font-size: 1.4em;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.reader-chapter-title:first-child {
+  margin-top: 0;
+}
+
 .reader-nav {
   position: fixed;
   bottom: 20px;
