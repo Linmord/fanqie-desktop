@@ -1,0 +1,16 @@
+# 依赖与构建产物
+node_modules/
+dist/
+release/
+
+# 运行时生成的设备注册信息与密钥（含 device_id / install_id，切勿提交）
+.fanqie_device.json
+
+# 本地工具配置
+.claude/
+
+# 系统与编辑器
+.DS_Store
+*.log
+.vscode/
+.idea/
