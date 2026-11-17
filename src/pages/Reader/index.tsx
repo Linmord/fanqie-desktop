@@ -22,7 +22,25 @@ export default function Reader() {
     loadChapters, loadContent, nextChapter, prevChapter, loadSettings,
   } = useReader();
 
-  const { updateProgress } = useBookshelf();
+  const updateProgress = useBookshelf((s) => s.updateProgress);
+  const savePosition = useBookshelf((s) => s.savePosition);
+
+  // 打开阅读页时记下书架上的章内位置。必须在挂载时取：之后换章会把它清零
+  const restoreRef = useRef<{ chapterId: string; para: number } | null | undefined>(undefined);
+  if (restoreRef.current === undefined) {
+    const item = useBookshelf.getState().items.find((i) => i.book.id === bookId);
+    restoreRef.current = item?.lastReadParaIndex ? { chapterId: item.lastReadChapterId, para: item.lastReadParaIndex } : null;
+  }
+  // 当前视口顶部是第几段；滚动停下后再写盘
+  const posRef = useRef(0);
+  const saveTimer = useRef<number>();
+  const savePosRef = useRef(() => {});
+  savePosRef.current = () => {
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = undefined;
+    const ch = useReader.getState().currentChapter;
+    if (bookId && ch) savePosition(bookId, ch.id, posRef.current);
+  };
 
   useEffect(() => {
     loadSettings();
@@ -46,9 +64,42 @@ export default function Reader() {
   }, [currentChapter, bookId, updateProgress]);
 
   useEffect(() => {
-    bodyRef.current?.scrollTo(0, 0);
     setCommentPara(null);
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = undefined;
+    posRef.current = 0;
+    const body = bodyRef.current;
+    if (!body || !content) return;
+    const r = restoreRef.current;
+    restoreRef.current = null;
+    const el = r && r.chapterId === useReader.getState().currentChapter?.id
+      ? body.querySelectorAll<HTMLElement>('.reader-para')[r.para]
+      : undefined;
+    if (el) {
+      body.scrollTop += el.getBoundingClientRect().top - body.getBoundingClientRect().top;
+      posRef.current = r!.para;
+    } else {
+      body.scrollTo(0, 0);
+    }
   }, [content]);
+
+  // 离开阅读页时把还没写盘的位置存下来，并清掉正文：下次打开时旧正文不能抢先消耗待恢复的位置
+  useEffect(() => () => {
+    if (saveTimer.current) savePosRef.current();
+    useReader.setState({ currentChapter: null, content: '', fontCss: '', paraIdx: [], commentStats: {} });
+  }, []);
+
+  const onScroll = () => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const top = body.getBoundingClientRect().top;
+    const paras = body.querySelectorAll('.reader-para');
+    let i = 0;
+    while (i < paras.length - 1 && paras[i].getBoundingClientRect().bottom <= top + 1) i++;
+    posRef.current = i;
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -86,7 +137,7 @@ export default function Reader() {
           </Popover>
         </div>
 
-        <div className="reader-body" ref={bodyRef}>
+        <div className="reader-body" ref={bodyRef} onScroll={onScroll}>
           {loading ? (
             <div className="loading">加载中...</div>
           ) : (

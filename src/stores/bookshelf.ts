@@ -14,6 +14,7 @@ interface BookshelfState {
   add: (book: Book) => Promise<void>;
   remove: (bookId: string) => Promise<void>;
   updateProgress: (bookId: string, chapterId: string, chapterTitle: string, index: number, total: number) => Promise<void>;
+  savePosition: (bookId: string, chapterId: string, paraIndex: number) => Promise<void>;
   isInShelf: (bookId: string) => boolean;
 }
 
@@ -29,9 +30,10 @@ function merge(cloud: BookshelfItem[], local: BookshelfItem[]): BookshelfItem[] 
     if (!l) return c;
     const book = { ...l.book, ...Object.fromEntries(Object.entries(c.book).filter(([, v]) => v !== '' && v !== 0)) } as Book;
     const localNewer = !!l.lastReadChapterId && (!c.lastReadChapterId || l.updatedAt > c.updatedAt);
+    const sameChapter = c.lastReadChapterId === l.lastReadChapterId;
     return localNewer
-      ? { ...c, book, lastReadChapterId: l.lastReadChapterId, lastReadChapterTitle: l.lastReadChapterTitle, progress: l.progress, updatedAt: l.updatedAt }
-      : { ...c, book, lastReadChapterTitle: c.lastReadChapterTitle || (c.lastReadChapterId === l.lastReadChapterId ? l.lastReadChapterTitle : '') };
+      ? { ...c, book, lastReadChapterId: l.lastReadChapterId, lastReadChapterTitle: l.lastReadChapterTitle, lastReadParaIndex: l.lastReadParaIndex, progress: l.progress, updatedAt: l.updatedAt }
+      : { ...c, book, lastReadChapterTitle: c.lastReadChapterTitle || (sameChapter ? l.lastReadChapterTitle : ''), lastReadParaIndex: sameChapter ? l.lastReadParaIndex : undefined };
   });
 }
 
@@ -113,16 +115,26 @@ export const useBookshelf = create<BookshelfState>((set, get) => ({
 
   updateProgress: async (bookId, chapterId, chapterTitle, index, total) => {
     const progress = total > 0 ? Math.min(1, (index + 1) / total) : 0;
+    const prev = get().items.find((i) => i.book.id === bookId);
     const items = await api.updateBookshelfItem(bookId, {
       lastReadChapterId: chapterId,
       lastReadChapterTitle: chapterTitle,
       progress,
+      // 换章从头读；同一章重新打开保留章内位置
+      ...(prev?.lastReadChapterId !== chapterId && { lastReadParaIndex: 0 }),
     });
     set({ items });
     if (loggedIn()) {
       // 进度同步失败不打扰阅读，下次同步时以本地较新的进度为准
       api.updateCloudProgress(bookId, chapterId, index, progress).catch((err) => console.warn('进度同步失败', err));
     }
+  },
+
+  savePosition: async (bookId, chapterId, paraIndex) => {
+    const prev = get().items.find((i) => i.book.id === bookId);
+    if (!prev || prev.lastReadChapterId !== chapterId || prev.lastReadParaIndex === paraIndex) return;
+    const items = await api.updateBookshelfItem(bookId, { lastReadParaIndex: paraIndex });
+    set({ items });
   },
 
   isInShelf: (bookId) => get().items.some((i) => i.book.id === bookId),

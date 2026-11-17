@@ -33,6 +33,8 @@ export interface BookshelfItem {
   book: Book;
   lastReadChapterId: string;
   lastReadChapterTitle: string;
+  /** 章内读到第几段（按正文行序号），只存本地，不同步云端 */
+  lastReadParaIndex?: number;
   progress: number;
   addedAt: string;
   updatedAt: string;
