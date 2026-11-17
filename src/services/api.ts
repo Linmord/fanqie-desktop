@@ -7,8 +7,8 @@ const noopSettings = () => Promise.resolve({
   fontSize: 18,
   lineHeight: 1.8,
   pageWidth: 720,
-  theme: { name: '默认', bgColor: '#1a1a2e', textColor: '#e0e0e0' },
-  fontFamily: 'system-ui',
+  theme: 'auto' as const,
+  fontFamily: 'serif' as const,
   readingMode: 'scroll' as const,
 });
 

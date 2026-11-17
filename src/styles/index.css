@@ -3,7 +3,9 @@
 @tailwind utilities;
 
 /* Claude 风格：暖调象牙白 / 暖炭灰，陶土橙强调色。data-theme 由 stores/theme.ts 设置 */
-:root {
+:root,
+.reader-container[data-reader-theme='ivory'],
+.reader-container[data-reader-theme='paper'] {
   --bg-primary: #FAF9F5;
   --bg-secondary: #F0EEE6;
   --bg-card: #E8E6DC;
@@ -23,7 +25,8 @@
   color-scheme: light;
 }
 
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+.reader-container[data-reader-theme='night'] {
   --bg-primary: #262624;
   --bg-secondary: #1F1E1D;
   --bg-card: #30302E;
@@ -38,6 +41,13 @@
   --active-bg: rgba(255, 255, 255, 0.08);
   --danger: #E5796A;
   color-scheme: dark;
+}
+
+/* 纸张：在象牙基础上换成稍深的暖米色底 */
+.reader-container[data-reader-theme='paper'] {
+  --bg-primary: #F0EEE6;
+  --bg-secondary: #E8E5DA;
+  --border: #DCD8CB;
 }
 
 * {
@@ -907,4 +917,120 @@ body {
 .cmt-error {
   font-size: 12px;
   color: var(--danger);
+}
+
+/* ---------- 阅读设置浮层 ---------- */
+.reader-aa {
+  font-family: var(--font-serif);
+  font-weight: 600;
+}
+
+.reader-settings {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px;
+  color: var(--text-primary);
+}
+
+.rs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rs-label {
+  flex: none;
+  width: 32px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rs-stepper,
+.rs-seg {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--hover-bg);
+}
+
+.rs-stepper button,
+.rs-seg button {
+  flex: 1;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.rs-stepper button:hover:not(:disabled),
+.rs-seg button:hover:not(.active) {
+  background: var(--hover-bg);
+}
+
+.rs-stepper button:disabled {
+  color: var(--text-secondary);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rs-value {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rs-seg button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.rs-themes {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+}
+
+.rs-theme {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.rs-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  box-shadow: 0 0 0 2px transparent;
+  transition: box-shadow 0.15s;
+}
+
+.rs-theme.active {
+  color: var(--accent);
+}
+
+.rs-theme.active .rs-swatch {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.reader-text ::selection,
+.reader-text::selection {
+  background: var(--accent-soft);
 }

@@ -41,12 +41,11 @@ export interface BookshelfItem {
 /** 全应用外观模式 */
 export type Appearance = 'system' | 'light' | 'dark';
 
-/** 阅读器主题 */
-export interface ReaderTheme {
-  name: string;
-  bgColor: string;
-  textColor: string;
-}
+/** 阅读器主题：auto 跟随应用明暗，其余为固定主题，颜色定义在 index.css */
+export type ReaderThemeId = 'auto' | 'ivory' | 'paper' | 'night';
+
+/** 阅读器正文字体 */
+export type ReaderFontId = 'serif' | 'sans' | 'kai';
 
 /** 阅读模式 */
 export type ReadingMode = 'scroll' | 'page';
@@ -56,8 +55,8 @@ export interface ReaderSettings {
   fontSize: number;
   lineHeight: number;
   pageWidth: number;
-  theme: ReaderTheme;
-  fontFamily: string;
+  theme: ReaderThemeId;
+  fontFamily: ReaderFontId;
   readingMode: ReadingMode;
 }
 
