@@ -16,6 +16,7 @@ export default function Reader() {
   const containerRef = useRef<HTMLDivElement>(null);
   const appDark = useTheme((s) => s.dark);
   const [commentPara, setCommentPara] = useState<{ index: number; text: string; count: number } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const {
     currentChapter, content, fontCss, paraIdx, commentStats, loading, settings,
@@ -103,15 +104,42 @@ export default function Reader() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // 段评抽屉打开时，方向键和 Esc 留给抽屉
-      if (commentPara) return;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextChapter();
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevChapter();
-      if (e.key === 'Escape') nav(-1);
+      // 段评抽屉打开时，方向键和 Esc 留给抽屉；带修饰键的组合留给系统
+      if (commentPara || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'Escape') {
+        if (settingsOpen) setSettingsOpen(false);
+        else nav(-1);
+        return;
+      }
+      const body = bodyRef.current;
+      if (!body) return;
+      // 翻一屏时留出约两行重叠，方便接上文
+      const overlap = settings.fontSize * settings.lineHeight * 2;
+      const atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 2;
+      const scroll = (top: number) => {
+        e.preventDefault();
+        body.scrollBy({ top, behavior: 'smooth' });
+      };
+      switch (e.key) {
+        case 'ArrowDown': return scroll(60);
+        case 'ArrowUp': return scroll(-60);
+        case 'ArrowRight': return void nextChapter();
+        case 'ArrowLeft': return void prevChapter();
+        case 'PageUp': return scroll(-(body.clientHeight - overlap));
+        case 'PageDown':
+        case ' ':
+          if (e.key === ' ' && e.shiftKey) return scroll(-(body.clientHeight - overlap));
+          // 已经到章末，再按一次进入下一章
+          if (atBottom) {
+            e.preventDefault();
+            return void nextChapter();
+          }
+          return scroll(body.clientHeight - overlap);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [nextChapter, prevChapter, nav, commentPara]);
+  }, [nextChapter, prevChapter, nav, commentPara, settingsOpen, settings.fontSize, settings.lineHeight]);
 
   const fontStack = FONTS.find((f) => f.value === settings.fontFamily)?.css || FONTS[0].css;
   // 反爬字体（如有）排在最前面负责解码，其余字形落到用户选的字体
@@ -132,7 +160,14 @@ export default function Reader() {
         <div className="reader-header">
           <button onClick={() => nav(-1)}>← 返回</button>
           <span style={{ fontSize: 13 }}>{currentChapter?.title || ''}</span>
-          <Popover content={<SettingsPanel />} trigger="click" placement="bottomRight" arrow={false}>
+          <Popover
+            content={<SettingsPanel />}
+            trigger="click"
+            placement="bottomRight"
+            arrow={false}
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+          >
             <button className="reader-aa" title="阅读设置">Aa</button>
           </Popover>
         </div>
