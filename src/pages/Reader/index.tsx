@@ -236,7 +236,7 @@ export default function Reader() {
     lastTopRef.current = body.scrollTop;
     track();
     grow();
-  }, [segments, settings.fontSize, settings.lineHeight, settings.pageWidth, settings.fontFamily]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [segments, settings.fontSize, settings.lineHeight, settings.pageWidth, settings.fontFamily, settings.paraSpacing, settings.indent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onScroll = () => {
     const body = bodyRef.current;
@@ -369,6 +369,10 @@ export default function Reader() {
         className="reader-container"
         ref={containerRef}
         data-reader-theme={settings.theme === 'auto' ? undefined : settings.theme}
+        style={{
+          ['--para-spacing' as string]: `${settings.paraSpacing}em`,
+          ['--para-indent' as string]: settings.indent ? '2em' : '0',
+        }}
         onMouseMove={(e) => {
           if (e.clientY < 72 || e.clientY > window.innerHeight - 72) setChromeVisible(true);
         }}

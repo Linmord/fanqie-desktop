@@ -124,7 +124,7 @@ const PagedView = forwardRef<PagedHandle, Props>(function PagedView(props, ref) 
     setAnimate(false);
     setCount(total);
     setPage(Math.min(p, total - 1));
-  }, [seg, pageW, spread, viewH, settings.fontSize, settings.lineHeight, settings.fontFamily]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [seg, pageW, spread, viewH, settings.fontSize, settings.lineHeight, settings.fontFamily, settings.paraSpacing, settings.indent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 翻到新的一页：记下这页开头的段落，报告页码
   useEffect(() => {

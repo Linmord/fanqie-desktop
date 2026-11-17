@@ -10,6 +10,8 @@ const noopSettings = () => Promise.resolve({
   theme: 'auto' as const,
   fontFamily: 'serif' as const,
   readingMode: 'scroll' as const,
+  paraSpacing: 0.6,
+  indent: true,
 });
 
 const fallback: ElectronAPI = {

@@ -60,6 +60,10 @@ export interface ReaderSettings {
   theme: ReaderThemeId;
   fontFamily: ReaderFontId;
   readingMode: ReadingMode;
+  /** 段间距，单位 em */
+  paraSpacing: number;
+  /** 段首空两字 */
+  indent: boolean;
 }
 
 /** 番茄账号 */

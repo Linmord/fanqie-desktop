@@ -1023,8 +1023,8 @@ body {
 
 /* 段评 */
 .reader-para {
-  margin: 0 0 0.6em;
-  text-indent: 2em;
+  margin: 0 0 var(--para-spacing, 0.6em);
+  text-indent: var(--para-indent, 2em);
 }
 
 .para-tail {

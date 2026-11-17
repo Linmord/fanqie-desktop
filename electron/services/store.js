@@ -65,6 +65,8 @@ const defaultSettings = {
   theme: 'auto',
   fontFamily: 'serif',
   readingMode: 'scroll',
+  paraSpacing: 0.6,
+  indent: true,
 };
 
 exports.getSettings = function () {
