@@ -22,8 +22,10 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
+    // 隐藏式标题栏只在 macOS 上有红绿灯按钮；Windows/Linux 保留系统标题栏，否则没有关闭/最小化按钮
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 } }
+      : { autoHideMenuBar: true }),
     backgroundColor: '#1a1a2e',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

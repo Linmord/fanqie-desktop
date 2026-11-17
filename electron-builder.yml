@@ -1,5 +1,7 @@
 appId: com.fanqie.desktop
 productName: 番茄小说
+# 发布资产用纯 ASCII 文件名，避免 GitHub Release 把中文名改乱
+artifactName: fanqie-desktop-${version}-${os}-${arch}.${ext}
 directories:
   buildResources: build
   output: release
@@ -18,5 +20,17 @@ mac:
       arch:
         - arm64
         - x64
-dmg:
-  artifactName: ${productName}-${version}-${arch}.${ext}
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  category: Office
+  target:
+    - target: AppImage
+      arch:
+        - x64
