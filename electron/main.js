@@ -4,6 +4,7 @@ const api = require('./services/api');
 const { FanqieAppApi } = require('./services/appapi');
 const store = require('./services/store');
 const account = require('./services/account');
+const bossKey = require('./bosskey');
 
 let mainWindow;
 
@@ -60,6 +61,7 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = store.getAppearance();
   nativeTheme.on('updated', () => mainWindow?.setBackgroundColor(windowBg()));
   createWindow();
+  bossKey.register();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -182,6 +184,7 @@ ipcMain.handle('window:toggleFullScreen', (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   if (win) win.setFullScreen(!win.isFullScreen());
 });
+ipcMain.handle('app:bossKeyRegistered', () => bossKey.isRegistered());
 ipcMain.handle('app:getAppearance', () => store.getAppearance());
 ipcMain.handle('app:setAppearance', (_e, mode) => {
   const saved = store.saveAppearance(mode);

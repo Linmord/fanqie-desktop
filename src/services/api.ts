@@ -44,6 +44,7 @@ const fallback: ElectronAPI = {
   saveSettings: noopSettings as ElectronAPI['saveSettings'],
   getAppearance: () => Promise.resolve('system' as const),
   setAppearance: (mode) => Promise.resolve(mode),
+  bossKeyRegistered: () => Promise.resolve(true),
   // 浏览器里预览时退回网页全屏
   isFullScreen: () => Promise.resolve(!!document.fullscreenElement),
   toggleFullScreen: () =>
@@ -92,6 +93,7 @@ export const getSettings = api.getSettings.bind(api);
 export const saveSettings = api.saveSettings.bind(api);
 export const getAppearance = api.getAppearance.bind(api);
 export const setAppearance = api.setAppearance.bind(api);
+export const bossKeyRegistered = api.bossKeyRegistered.bind(api);
 export const isFullScreen = api.isFullScreen.bind(api);
 export const toggleFullScreen = api.toggleFullScreen.bind(api);
 export const onFullScreenChange = api.onFullScreenChange.bind(api);

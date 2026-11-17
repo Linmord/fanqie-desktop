@@ -36,6 +36,8 @@ interface ElectronAPI {
   saveSettings(settings: import('./types').ReaderSettings): Promise<import('./types').ReaderSettings>;
   getAppearance(): Promise<import('./types').Appearance>;
   setAppearance(mode: import('./types').Appearance): Promise<import('./types').Appearance>;
+  /** 老板键 ⌥+Q 是否注册成功（被其他 App 占用时为 false） */
+  bossKeyRegistered(): Promise<boolean>;
   isFullScreen(): Promise<boolean>;
   toggleFullScreen(): Promise<void>;
   /** 返回取消监听的函数 */
