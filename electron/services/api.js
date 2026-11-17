@@ -276,3 +276,24 @@ exports.getRanking = async function getRanking(categoryId = '0', page = 0) {
     return { books: [], total: 0, hasMore: false };
   }
 };
+
+// 官网首页的推荐模块（服务端渲染，文字是明文）
+const RECOMMEND_SECTIONS = [
+  ['weekList', '本周推荐'],
+  ['editorList', '编辑推荐'],
+  ['boyList', '男频精选'],
+  ['girlList', '女频精选'],
+];
+
+exports.getRecommend = async function getRecommend() {
+  try {
+    const state = extractState(await webRequest('/'));
+    const home = state?.home || {};
+    return RECOMMEND_SECTIONS
+      .map(([key, title]) => ({ title, books: (home[key] || []).map(normalizeWebBook).filter(Boolean) }))
+      .filter((s) => s.books.length > 0);
+  } catch (err) {
+    console.error('Recommend error:', err.message);
+    return [];
+  }
+};

@@ -113,6 +113,9 @@ ipcMain.handle('api:ranking', async (_e, categoryId, page) => {
   return api.getRanking(categoryId, page);
 });
 
+// --- IPC: 首页推荐 ---
+ipcMain.handle('api:recommend', () => api.getRecommend());
+
 // --- IPC: 书架 ---
 ipcMain.handle('store:getBookshelf', () => store.getBookshelf());
 ipcMain.handle('store:addToBookshelf', (_e, item) => store.addToBookshelf(item));

@@ -13,6 +13,7 @@ interface ElectronAPI {
   commentDigg(bookId: string, id: string, like: boolean, isReply: boolean, serviceId: number): Promise<void>;
   categories(): Promise<{ id: string; name: string; children: { id: string; name: string }[] }[]>;
   ranking(categoryId?: string, page?: number): Promise<import('./types').SearchResult>;
+  recommend(): Promise<{ title: string; books: import('./types').Book[] }[]>;
 
   getBookshelf(): Promise<import('./types').BookshelfItem[]>;
   addToBookshelf(item: import('./types').BookshelfItem): Promise<import('./types').BookshelfItem[]>;

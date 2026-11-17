@@ -25,6 +25,7 @@ const fallback: ElectronAPI = {
   commentDigg: () => Promise.reject(new Error('请在桌面客户端中点赞')),
   categories: () => Promise.resolve([]),
   ranking: noop,
+  recommend: noopArr,
   getBookshelf: noopArr,
   addToBookshelf: noopArr as ElectronAPI['addToBookshelf'],
   removeFromBookshelf: noopArr as ElectronAPI['removeFromBookshelf'],
@@ -56,6 +57,7 @@ export const commentReply = api.commentReply.bind(api);
 export const commentDigg = api.commentDigg.bind(api);
 export const categories = api.categories.bind(api);
 export const ranking = api.ranking.bind(api);
+export const recommend = api.recommend.bind(api);
 
 export const getBookshelf = api.getBookshelf.bind(api);
 export const addToBookshelf = api.addToBookshelf.bind(api);
