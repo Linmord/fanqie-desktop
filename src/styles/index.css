@@ -974,6 +974,21 @@ body {
   word-break: break-word;
 }
 
+.cmt-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.cmt-images .cmt-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--bg-card);
+}
+
 .cmt-emoji {
   width: 1.4em;
   height: 1.4em;
