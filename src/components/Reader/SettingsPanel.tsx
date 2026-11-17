@@ -1,6 +1,6 @@
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import { useReader } from '@/stores/reader';
-import { FONT_SIZE, FONTS, LINE_HEIGHTS, PAGE_WIDTHS, THEMES } from './options';
+import { FONT_SIZE, FONTS, LINE_HEIGHTS, PAGE_WIDTHS, READING_MODES, THEMES } from './options';
 
 function Seg<T extends string | number>({ options, value, onChange }: {
   options: { value: T; label: string }[];
@@ -18,13 +18,17 @@ function Seg<T extends string | number>({ options, value, onChange }: {
   );
 }
 
-/** 「Aa」浮层：字号、行高、宽度、字体、主题，改动立即生效 */
+/** 「Aa」浮层：翻页方式、字号、行高、宽度、字体、主题，改动立即生效 */
 export default function SettingsPanel() {
   const { settings, updateSettings } = useReader();
   const { fontSize } = settings;
 
   return (
     <div className="reader-settings">
+      <div className="rs-row">
+        <span className="rs-label">翻页</span>
+        <Seg options={READING_MODES} value={settings.readingMode} onChange={(readingMode) => updateSettings({ readingMode })} />
+      </div>
       <div className="rs-row">
         <span className="rs-label">字号</span>
         <div className="rs-stepper">

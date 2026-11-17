@@ -1,6 +1,11 @@
-import type { ReaderFontId, ReaderSettings, ReaderThemeId } from '@/types';
+import type { ReaderFontId, ReaderSettings, ReaderThemeId, ReadingMode } from '@/types';
 
 export const FONT_SIZE = { min: 14, max: 28 };
+
+export const READING_MODES: { value: ReadingMode; label: string }[] = [
+  { value: 'scroll', label: '滚动' },
+  { value: 'page', label: '翻页' },
+];
 
 export const LINE_HEIGHTS = [
   { value: 1.6, label: '紧凑' },
@@ -50,6 +55,6 @@ export function normalizeSettings(raw: Partial<Record<keyof ReaderSettings, unkn
     pageWidth: pick(PAGE_WIDTHS, raw?.pageWidth, d.pageWidth),
     theme: pick(THEMES, raw?.theme, d.theme),
     fontFamily: pick(FONTS, raw?.fontFamily, d.fontFamily),
-    readingMode: 'scroll',
+    readingMode: pick(READING_MODES, raw?.readingMode, d.readingMode),
   };
 }
