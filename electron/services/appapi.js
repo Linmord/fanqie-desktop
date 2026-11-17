@@ -15,6 +15,7 @@ const https = require('https');
 const { URL } = require('url');
 const path = require('path');
 const fs = require('fs');
+const { app } = require('electron');
 
 // =========================================================================
 // 常量（来自 APP 7.0.1.32）
@@ -56,7 +57,8 @@ const DEVICE_BRANDS = [
   'google', 'Redmi', 'HONOR', 'motorola', 'POCO',
 ];
 
-const CACHE_PATH = path.join(__dirname, '..', '..', '.fanqie_device.json');
+// 放在 userData 下：打包后 __dirname 位于只读的 app.asar 内，写不进去
+const CACHE_PATH = path.join(app.getPath('userData'), 'data', 'device.json');
 
 // =========================================================================
 // AES-CBC
@@ -583,6 +585,7 @@ class FanqieAppApi {
         key_version: this.keyVersion,
         updated_at: Math.floor(Date.now() / 1000),
       };
+      fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
       fs.writeFileSync(CACHE_PATH, JSON.stringify(payload, null, 2), 'utf-8');
     } catch {}
   }

@@ -81,7 +81,7 @@ npm run build
 | --- | --- |
 | 本地书架、阅读设置 | `~/Library/Application Support/<应用名>/data/*.json`（开发模式为 `fanqie-desktop`，打包后为 `番茄小说`） |
 | 登录 Cookie | 同目录下 `account.bin`，经 Electron `safeStorage` 加密 |
-| App 接口设备注册信息 | 项目根目录 `.fanqie_device.json`（已加入 `.gitignore`） |
+| App 接口设备注册信息 | 同目录下 `device.json` |
 
 ## 参考的开源项目
 
