@@ -523,6 +523,42 @@ body {
   color: var(--text-secondary);
 }
 
+/* 翻页模式：正文按页宽排成多栏，一栏一页，整体横向平移翻页 */
+.reader-paged {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: default;
+  user-select: text;
+}
+
+.reader-page-view {
+  overflow: hidden;
+}
+
+.reader-text.reader-columns {
+  max-width: none;
+  padding: 0;
+  align-self: auto;
+  column-fill: auto;
+}
+
+.reader-columns.animate {
+  transition: transform 0.25s ease;
+}
+
+.reader-columns .reader-chapter-title {
+  break-after: avoid;
+}
+
+.reader-columns .reader-seg-status {
+  min-height: 0;
+  break-inside: avoid;
+}
+
 /* 章内进度：常驻右下角，很淡，不抢正文 */
 .reader-progress {
   position: fixed;
