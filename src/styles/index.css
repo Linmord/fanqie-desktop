@@ -255,28 +255,65 @@ body {
 }
 
 .reader-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
+  gap: 12px;
+  height: 52px;
+  padding: 0 20px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.reader-header.hidden {
+  transform: translateY(-100%);
   opacity: 0;
-  transition: opacity 0.2s;
+  pointer-events: none;
 }
 
-.reader-container:hover .reader-header {
-  opacity: 1;
-}
-
-.reader-header button {
-  -webkit-app-region: no-drag;
-  background: var(--hover-bg);
-  border: none;
-  color: var(--text-primary);
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
+.reader-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
   font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reader-tool {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.reader-tool:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
 }
 
 .reader-body {
@@ -289,40 +326,60 @@ body {
 .reader-text {
   max-width: var(--reader-width, 720px);
   width: 100%;
-  padding: 40px 32px 120px;
+  padding: 88px 32px 120px;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .reader-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 20px;
+  left: 50%;
+  z-index: 2;
   display: flex;
-  justify-content: center;
-  gap: 16px;
-  padding: 16px;
-  opacity: 0;
-  transition: opacity 0.2s;
+  gap: 4px;
+  padding: 4px;
+  transform: translateX(-50%);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
-.reader-container:hover .reader-nav {
-  opacity: 1;
+.reader-nav.hidden {
+  transform: translate(-50%, calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 .reader-nav button {
-  padding: 8px 24px;
-  background: var(--hover-bg);
+  padding: 6px 18px;
+  background: transparent;
   border: none;
-  color: var(--text-primary);
-  border-radius: 6px;
+  color: var(--text-secondary);
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
+  transition: background 0.15s, color 0.15s;
 }
 
 .reader-nav button:hover {
-  background: var(--active-bg);
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/* 章内进度：常驻右下角，很淡，不抢正文 */
+.reader-progress {
+  position: fixed;
+  right: 20px;
+  bottom: 14px;
+  z-index: 1;
+  font-size: 12px;
+  color: var(--accent);
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
 .detail-header {

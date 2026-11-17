@@ -3,11 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useReader } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
 import { ConfigProvider, Popover } from 'antd';
-import { CommentOutlined } from '@ant-design/icons';
+import { CommentOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
+import * as api from '@/services/api';
 import CommentDrawer from '@/components/CommentDrawer';
 import SettingsPanel from '@/components/Reader/SettingsPanel';
 import { FONTS } from '@/components/Reader/options';
 import { useTheme, antdConfig } from '@/stores/theme';
+
+// macOS 隐藏式标题栏的红绿灯压在阅读页左上角，工具栏要让开
+const isMac = navigator.userAgent.includes('Mac');
 
 export default function Reader() {
   const { bookId, chapterId } = useParams<{ bookId: string; chapterId: string }>();
@@ -17,6 +21,11 @@ export default function Reader() {
   const appDark = useTheme((s) => s.dark);
   const [commentPara, setCommentPara] = useState<{ index: number; text: string; count: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 沉浸模式：往下读时收起工具栏，往上滚或鼠标移到上下边缘时出现
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const [fullScreen, setFullScreen] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const lastTopRef = useRef(0);
 
   const {
     currentChapter, content, fontCss, paraIdx, commentStats, loading, settings,
@@ -46,6 +55,18 @@ export default function Reader() {
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    api.isFullScreen().then(setFullScreen);
+    return api.onFullScreenChange(setFullScreen);
+  }, []);
+
+  const measure = () => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const max = body.scrollHeight - body.clientHeight;
+    setProgress(max > 0 ? Math.min(1, body.scrollTop / max) : 1);
+  };
 
   useEffect(() => {
     if (!bookId) return;
@@ -81,7 +102,10 @@ export default function Reader() {
       posRef.current = r!.para;
     } else {
       body.scrollTo(0, 0);
+      setChromeVisible(true);
     }
+    lastTopRef.current = body.scrollTop;
+    measure();
   }, [content]);
 
   // 离开阅读页时把还没写盘的位置存下来，并清掉正文：下次打开时旧正文不能抢先消耗待恢复的位置
@@ -98,6 +122,15 @@ export default function Reader() {
     let i = 0;
     while (i < paras.length - 1 && paras[i].getBoundingClientRect().bottom <= top + 1) i++;
     posRef.current = i;
+
+    const st = body.scrollTop;
+    const delta = st - lastTopRef.current;
+    lastTopRef.current = st;
+    // 章首、往回滚、读到章末（方便点下一章）时显示
+    if (st < 24 || delta < -4 || st >= body.scrollHeight - body.clientHeight - 2) setChromeVisible(true);
+    else if (delta > 4) setChromeVisible(false);
+    measure();
+
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
   };
@@ -108,7 +141,12 @@ export default function Reader() {
       if (commentPara || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'Escape') {
         if (settingsOpen) setSettingsOpen(false);
+        else if (fullScreen) api.toggleFullScreen();
         else nav(-1);
+        return;
+      }
+      if (e.key === 'f' || e.key === 'F') {
+        api.toggleFullScreen();
         return;
       }
       const body = bodyRef.current;
@@ -139,7 +177,7 @@ export default function Reader() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [nextChapter, prevChapter, nav, commentPara, settingsOpen, settings.fontSize, settings.lineHeight]);
+  }, [nextChapter, prevChapter, nav, commentPara, settingsOpen, fullScreen, settings.fontSize, settings.lineHeight]);
 
   const fontStack = FONTS.find((f) => f.value === settings.fontFamily)?.css || FONTS[0].css;
   // 反爬字体（如有）排在最前面负责解码，其余字形落到用户选的字体
@@ -148,6 +186,7 @@ export default function Reader() {
     : fontStack;
   // 阅读主题只作用于阅读页；antd 浮层（Aa 面板、段评抽屉）挂在容器内，才能拿到同一套颜色变量
   const readerDark = settings.theme === 'night' || (settings.theme === 'auto' && appDark);
+  const showChrome = chromeVisible || settingsOpen;
 
   return (
     <ConfigProvider theme={antdConfig(readerDark)} getPopupContainer={() => containerRef.current || document.body}>
@@ -155,21 +194,36 @@ export default function Reader() {
         className="reader-container"
         ref={containerRef}
         data-reader-theme={settings.theme === 'auto' ? undefined : settings.theme}
+        onMouseMove={(e) => {
+          if (e.clientY < 72 || e.clientY > window.innerHeight - 72) setChromeVisible(true);
+        }}
       >
         {fontCss && <style dangerouslySetInnerHTML={{ __html: fontCss }} />}
-        <div className="reader-header">
-          <button onClick={() => nav(-1)}>← 返回</button>
-          <span style={{ fontSize: 13 }}>{currentChapter?.title || ''}</span>
-          <Popover
-            content={<SettingsPanel />}
-            trigger="click"
-            placement="bottomRight"
-            arrow={false}
-            open={settingsOpen}
-            onOpenChange={setSettingsOpen}
-          >
-            <button className="reader-aa" title="阅读设置">Aa</button>
-          </Popover>
+        <div
+          className={`reader-header${showChrome ? '' : ' hidden'}`}
+          style={isMac && !fullScreen ? { paddingLeft: 88 } : undefined}
+        >
+          <button className="reader-tool" onClick={() => nav(-1)}>← 返回</button>
+          <span className="reader-title">{currentChapter?.title || ''}</span>
+          <div className="reader-tools">
+            <button
+              className="reader-tool"
+              title={fullScreen ? '退出全屏（F）' : '全屏（F）'}
+              onClick={() => api.toggleFullScreen()}
+            >
+              {fullScreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+            </button>
+            <Popover
+              content={<SettingsPanel />}
+              trigger="click"
+              placement="bottomRight"
+              arrow={false}
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+            >
+              <button className="reader-tool reader-aa" title="阅读设置">Aa</button>
+            </Popover>
+          </div>
         </div>
 
         <div className="reader-body" ref={bodyRef} onScroll={onScroll}>
@@ -218,7 +272,9 @@ export default function Reader() {
           )}
         </div>
 
-        <div className="reader-nav">
+        {content && !loading && <div className="reader-progress">本章 {Math.round(progress * 100)}%</div>}
+
+        <div className={`reader-nav${showChrome ? '' : ' hidden'}`}>
           <button onClick={prevChapter}>上一章</button>
           <button onClick={() => nav(`/book/${bookId}`)}>目录</button>
           <button onClick={nextChapter}>下一章</button>

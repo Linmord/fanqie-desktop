@@ -44,6 +44,11 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 
+  // 阅读页的全屏按钮要跟随实际状态（也可能是用户点了绿灯进入全屏）
+  const sendFullScreen = () => mainWindow.webContents.send('window:fullscreen', mainWindow.isFullScreen());
+  mainWindow.on('enter-full-screen', sendFullScreen);
+  mainWindow.on('leave-full-screen', sendFullScreen);
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -171,6 +176,11 @@ ipcMain.handle('store:replaceBookshelf', (_e, items) => store.replaceBookshelf(i
 // --- IPC: 设置 ---
 ipcMain.handle('store:getSettings', () => store.getSettings());
 ipcMain.handle('store:saveSettings', (_e, settings) => store.saveSettings(settings));
+ipcMain.handle('window:isFullScreen', (e) => !!BrowserWindow.fromWebContents(e.sender)?.isFullScreen());
+ipcMain.handle('window:toggleFullScreen', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (win) win.setFullScreen(!win.isFullScreen());
+});
 ipcMain.handle('app:getAppearance', () => store.getAppearance());
 ipcMain.handle('app:setAppearance', (_e, mode) => {
   const saved = store.saveAppearance(mode);
