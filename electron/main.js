@@ -4,6 +4,7 @@ const api = require('./services/api');
 const { FanqieAppApi } = require('./services/appapi');
 const store = require('./services/store');
 const account = require('./services/account');
+const chapterCache = require('./services/chaptercache');
 
 let mainWindow;
 
@@ -60,6 +61,7 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = store.getAppearance();
   nativeTheme.on('updated', () => mainWindow?.setBackgroundColor(windowBg()));
   createWindow();
+  chapterCache.prune();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -88,14 +90,16 @@ ipcMain.handle('api:bookDetail', async (_e, bookId) => {
 
 // --- IPC: 章节列表 ---
 ipcMain.handle('api:chapters', async (_e, bookId) => {
-  return api.getChapters(bookId);
+  const chapters = await api.getChapters(bookId);
+  chapterCache.registerBook(bookId, chapters);
+  return chapters;
 });
 
 // --- IPC: 章节内容（优先 App API，无章节限制且无字体加密）---
 ipcMain.handle('api:chapterContent', async (_e, itemId) => {
   try {
-    const { paragraphs, paraIdx } = await appApi.fetchChapter(String(itemId));
-    return { content: paragraphs.join('\n'), fontCss: '', paraIdx };
+    const { content, paraIdx } = await chapterCache.getChapter(appApi, itemId);
+    return { content, fontCss: '', paraIdx };
   } catch (err) {
     console.warn('App API 失败，回退 Web API:', err.message);
     return api.getChapterContent(itemId);
