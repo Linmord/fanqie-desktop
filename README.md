@@ -1,6 +1,6 @@
 # fanqie-desktop
 
-> 一个非官方的番茄小说 macOS 桌面客户端，基于 Electron + React 构建。
+> 一个非官方的番茄小说桌面客户端，支持 macOS / Windows / Linux，基于 Electron + React 构建。
 >
 > ⚠️ **仅供学习与技术研究，严禁商用。使用前请务必阅读 [免责声明](./DISCLAIMER.md)。**
 
@@ -26,7 +26,7 @@
 | 前端 | React 18 · TypeScript · Vite 6 |
 | UI | Ant Design 5 · Tailwind CSS 3 |
 | 状态管理 | Zustand 5 |
-| 打包 | electron-builder（dmg / zip，arm64 + x64） |
+| 打包 | electron-builder + GitHub Actions（macOS dmg/zip · Windows 安装包 · Linux AppImage） |
 
 ## 项目结构
 
@@ -49,9 +49,26 @@ fanqie-desktop
 └── vite.config.ts
 ```
 
-## 快速开始
+## 下载安装
 
-环境要求：macOS、Node.js 18 及以上。
+到 [Releases](https://github.com/MoYiC6/fanqie-desktop/releases/latest) 下载对应平台的安装包：
+
+| 系统 | 文件 |
+| --- | --- |
+| macOS（Apple 芯片） | `fanqie-desktop-<版本>-mac-arm64.dmg` |
+| macOS（Intel） | `fanqie-desktop-<版本>-mac-x64.dmg` |
+| Windows | `fanqie-desktop-<版本>-win-x64.exe` |
+| Linux | `fanqie-desktop-<版本>-linux-x86_64.AppImage` |
+
+安装包都没有做代码签名，首次打开需要手动放行：
+
+- **macOS**：如果提示"无法验证开发者"，在「系统设置 → 隐私与安全性」里点"仍要打开"；如果提示"已损坏，无法打开"，在终端执行 `xattr -cr /Applications/番茄小说.app` 后再打开。
+- **Windows**：SmartScreen 拦截时，点"更多信息 → 仍要运行"。
+- **Linux**：先给 AppImage 加执行权限：`chmod +x fanqie-desktop-*.AppImage`。
+
+## 从源码运行
+
+环境要求：Node.js 18 及以上。
 
 ```bash
 git clone https://github.com/MoYiC6/fanqie-desktop.git
@@ -67,21 +84,29 @@ cd fanqie-desktop && npm install
 npm run dev
 ```
 
-打包（产物输出到 `release/`）：
+打包当前平台（产物输出到 `release/`）：
 
 ```bash
 npm run build
 ```
 
-> 打包产物未签名，首次打开时如提示"无法验证开发者"，请在「系统设置 → 隐私与安全性」中选择"仍要打开"。
+推送 `v*` 格式的 tag 会触发 GitHub Actions，在三个平台上分别打包，并自动发布 Release。
 
 ## 数据存储
 
 | 内容 | 位置 |
 | --- | --- |
-| 本地书架、阅读设置 | `~/Library/Application Support/<应用名>/data/*.json`（开发模式为 `fanqie-desktop`，打包后为 `番茄小说`） |
-| 登录 Cookie | 同目录下 `account.bin`，经 Electron `safeStorage` 加密 |
-| App 接口设备注册信息 | 同目录下 `device.json` |
+| 本地书架、阅读设置 | `<数据目录>/data/*.json` |
+| 登录 Cookie | `<数据目录>/data/account.bin`，经 Electron `safeStorage` 加密 |
+| App 接口设备注册信息 | `<数据目录>/data/device.json` |
+
+`<数据目录>` 在 macOS 上是 `~/Library/Application Support/fanqie-desktop`，Windows 上是 `%APPDATA%\fanqie-desktop`，Linux 上是 `~/.config/fanqie-desktop`。
+
+## 常见问题
+
+**正文加载失败，日志里出现 `Client network socket disconnected before secure TLS connection was established`？**
+
+首次使用时，App 会向 `i.snssdk.com` 注册设备。部分代理软件的去广告规则会拦截这个域名，导致注册失败。请在代理规则中放行 `snssdk.com`，或临时关闭代理后再试。
 
 ## 参考的开源项目
 
