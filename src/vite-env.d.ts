@@ -8,6 +8,9 @@ interface ElectronAPI {
   commentStats(itemId: string): Promise<Record<string, number>>;
   commentList(itemId: string, bookId: string, paraIndex: number, cursor?: string, sort?: number): Promise<import('./types').CommentPage>;
   commentReplies(commentId: string, cursor?: string): Promise<import('./types').ReplyPage>;
+  commentAdd(itemId: string, bookId: string, paraIndex: number, paraText: string, text: string): Promise<import('./types').ParaComment>;
+  commentReply(itemId: string, bookId: string, paraIndex: number, paraText: string, rootId: string, toUserId: string, text: string, toReplyId?: string): Promise<import('./types').ParaComment>;
+  commentDigg(bookId: string, id: string, like: boolean, isReply: boolean, serviceId: number): Promise<void>;
   categories(): Promise<{ id: string; name: string; children: { id: string; name: string }[] }[]>;
   ranking(categoryId?: string, page?: number): Promise<import('./types').SearchResult>;
 

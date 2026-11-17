@@ -83,6 +83,11 @@ export interface ChapterContent {
 /** 段评或回复 */
 export interface ParaComment {
   id: string;
+  isReply: boolean;
+  userId: string;
+  serviceId: number;
+  /** 当前登录账号是否赞过 */
+  liked: boolean;
   text: string;
   time: number;
   userName: string;

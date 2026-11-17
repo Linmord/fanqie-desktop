@@ -20,6 +20,9 @@ const fallback: ElectronAPI = {
   commentStats: () => Promise.resolve({}),
   commentList: () => Promise.resolve({ comments: [], cursor: '', hasMore: false, total: 0 }),
   commentReplies: () => Promise.resolve({ replies: [], cursor: '', hasMore: false }),
+  commentAdd: () => Promise.reject(new Error('请在桌面客户端中发段评')),
+  commentReply: () => Promise.reject(new Error('请在桌面客户端中回复')),
+  commentDigg: () => Promise.reject(new Error('请在桌面客户端中点赞')),
   categories: () => Promise.resolve([]),
   ranking: noop,
   getBookshelf: noopArr,
@@ -48,6 +51,9 @@ export const chapterContent = api.chapterContent.bind(api);
 export const commentStats = api.commentStats.bind(api);
 export const commentList = api.commentList.bind(api);
 export const commentReplies = api.commentReplies.bind(api);
+export const commentAdd = api.commentAdd.bind(api);
+export const commentReply = api.commentReply.bind(api);
+export const commentDigg = api.commentDigg.bind(api);
 export const categories = api.categories.bind(api);
 export const ranking = api.ranking.bind(api);
 

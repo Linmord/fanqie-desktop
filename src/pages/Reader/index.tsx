@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useReader } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
+import { CommentOutlined } from '@ant-design/icons';
 import CommentDrawer from '@/components/CommentDrawer';
 
 export default function Reader() {
@@ -93,18 +94,18 @@ export default function Reader() {
                 const count = commentStats[idx] || 0;
                 return (
                   <p key={i} className="reader-para">
-                    {count > 0 ? (
+                    {idx >= 0 ? (
                       <>
                         {text.slice(0, -1)}
-                        {/* 气泡和最后一个字绑在一起，避免单独掉到下一行 */}
+                        {/* 气泡和最后一个字绑在一起，避免单独掉到下一行；没有段评的段落悬停才显示 */}
                         <span className="para-tail">
                           {text.slice(-1)}
                           <button
-                            className="para-comment"
-                            title="查看段评"
+                            className={`para-comment${count ? '' : ' empty'}`}
+                            title={count ? '查看段评' : '写段评'}
                             onClick={() => setCommentPara({ index: idx, text, count })}
                           >
-                            {count > 999 ? '999+' : count}
+                            {count ? (count > 999 ? '999+' : count) : <CommentOutlined />}
                           </button>
                         </span>
                       </>
@@ -129,6 +130,12 @@ export default function Reader() {
           itemId={currentChapter.id}
           para={commentPara}
           onClose={() => setCommentPara(null)}
+          onPosted={(idx) => {
+            useReader.setState((st) => ({
+              commentStats: { ...st.commentStats, [idx]: (st.commentStats[idx] || 0) + 1 },
+            }));
+            setCommentPara((p) => p && { ...p, count: p.count + 1 });
+          }}
         />
       )}
     </div>

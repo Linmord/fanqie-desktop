@@ -604,6 +604,21 @@ body {
   background: var(--accent);
 }
 
+/* 没有段评的段落：平时不占视觉，悬停段落时淡淡露出，可以写第一条 */
+.para-comment.empty {
+  opacity: 0;
+  background: transparent;
+}
+
+.reader-para:hover .para-comment.empty {
+  opacity: 0.4;
+}
+
+.reader-para .para-comment.empty:hover {
+  opacity: 1;
+  background: var(--accent);
+}
+
 .comment-drawer .ant-drawer-body {
   padding: 16px 20px;
 }
@@ -715,8 +730,72 @@ body {
   color: var(--accent);
 }
 
+.cmt-action {
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.cmt-action:hover {
+  color: var(--text-primary);
+}
+
 .cmt-digg {
   margin-left: auto;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.cmt-digg:hover,
+.cmt-digg.liked {
+  color: var(--accent);
+}
+
+.comment-drawer .ant-drawer-footer {
+  padding: 12px 20px;
+}
+
+.cmt-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cmt-replying {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cmt-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cmt-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.cmt-login {
+  width: 100%;
+  padding: 8px;
+  font-size: 13px;
+  color: var(--accent);
+  background: rgba(233, 69, 96, 0.08);
+  border: 1px dashed rgba(233, 69, 96, 0.4);
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .cmt-link {
