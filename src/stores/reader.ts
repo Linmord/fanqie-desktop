@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Chapter, ReaderSettings } from '@/types';
 import * as api from '@/services/api';
+import { DEFAULT_SETTINGS, normalizeSettings } from '@/components/Reader/options';
 
 interface ReaderState {
   bookId: string;
@@ -21,15 +22,6 @@ interface ReaderState {
   updateSettings: (patch: Partial<ReaderSettings>) => Promise<void>;
 }
 
-const defaultSettings: ReaderSettings = {
-  fontSize: 18,
-  lineHeight: 1.8,
-  pageWidth: 720,
-  theme: { name: '默认', bgColor: '#1a1a2e', textColor: '#e0e0e0' },
-  fontFamily: 'system-ui',
-  readingMode: 'scroll',
-};
-
 export const useReader = create<ReaderState>((set, get) => ({
   bookId: '',
   chapters: [],
@@ -39,7 +31,7 @@ export const useReader = create<ReaderState>((set, get) => ({
   paraIdx: [],
   commentStats: {},
   loading: false,
-  settings: defaultSettings,
+  settings: DEFAULT_SETTINGS,
 
   loadChapters: async (bookId) => {
     set({ bookId, loading: true });
@@ -80,13 +72,14 @@ export const useReader = create<ReaderState>((set, get) => ({
   },
 
   loadSettings: async () => {
-    const settings = await api.getSettings();
+    const settings = normalizeSettings(await api.getSettings());
     set({ settings });
   },
 
+  // 先改界面再落盘，调字号时不用等 IPC
   updateSettings: async (patch) => {
     const settings = { ...get().settings, ...patch };
-    await api.saveSettings(settings);
     set({ settings });
+    await api.saveSettings(settings);
   },
 }));

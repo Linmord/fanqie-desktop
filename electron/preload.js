@@ -40,4 +40,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.invoke('store:saveSettings', settings),
   getAppearance: () => ipcRenderer.invoke('app:getAppearance'),
   setAppearance: (mode) => ipcRenderer.invoke('app:setAppearance', mode),
+  isFullScreen: () => ipcRenderer.invoke('window:isFullScreen'),
+  toggleFullScreen: () => ipcRenderer.invoke('window:toggleFullScreen'),
+  onFullScreenChange: (cb) => {
+    const listener = (_e, value) => cb(value);
+    ipcRenderer.on('window:fullscreen', listener);
+    return () => ipcRenderer.removeListener('window:fullscreen', listener);
+  },
 });

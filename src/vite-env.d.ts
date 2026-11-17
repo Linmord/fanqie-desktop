@@ -35,6 +35,10 @@ interface ElectronAPI {
   saveSettings(settings: import('./types').ReaderSettings): Promise<import('./types').ReaderSettings>;
   getAppearance(): Promise<import('./types').Appearance>;
   setAppearance(mode: import('./types').Appearance): Promise<import('./types').Appearance>;
+  isFullScreen(): Promise<boolean>;
+  toggleFullScreen(): Promise<void>;
+  /** 返回取消监听的函数 */
+  onFullScreenChange(cb: (fullScreen: boolean) => void): () => void;
 }
 
 interface Window {

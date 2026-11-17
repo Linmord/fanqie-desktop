@@ -62,8 +62,8 @@ const defaultSettings = {
   fontSize: 18,
   lineHeight: 1.8,
   pageWidth: 720,
-  theme: { name: '默认', bgColor: '#1a1a2e', textColor: '#e0e0e0' },
-  fontFamily: 'system-ui',
+  theme: 'auto',
+  fontFamily: 'serif',
   readingMode: 'scroll',
 };
 
