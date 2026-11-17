@@ -89,7 +89,7 @@ npm run build
 
 | 项目 | 许可证 | 用途 |
 | --- | --- | --- |
-| [Jees996/fanqie-novel-downloader](https://github.com/Jees996/fanqie-novel-downloader) | MIT | `electron/services/appapi.js` 由其 `core/appapi.py` 移植为 Node.js，包括设备注册、密钥交换、请求签名和正文 AES 解密流程。原版权声明保留在 [LICENSE](./LICENSE) 中 |
+| [Jees996/fanqie-novel-downloader](https://github.com/Jees996/fanqie-novel-downloader) | MIT | `electron/services/appapi.js` 由其 `core/appapi.py` 移植为 Node.js，包括设备注册、密钥交换、请求签名和正文 AES 解密流程。原版权声明保留在 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) 中 |
 | [naiyQAQ/fanqie-assistant](https://github.com/naiyQAQ/fanqie-assistant) | GPL-3.0 | 上述项目的 App 网关签名与加解密算法参考了它的公开实现，本项目间接受益 |
 
 以及构建本项目所依赖的 [Electron](https://github.com/electron/electron)、[React](https://github.com/facebook/react)、[Vite](https://github.com/vitejs/vite)、[Ant Design](https://github.com/ant-design/ant-design)、[Tailwind CSS](https://github.com/tailwindlabs/tailwindcss)、[Zustand](https://github.com/pmndrs/zustand)、[electron-builder](https://github.com/electron-userland/electron-builder) 等项目。
