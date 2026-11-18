@@ -2,9 +2,11 @@
 
 mod account;
 mod appapi;
+mod bosskey;
 mod chapters;
 mod crypto;
 mod fontdecode;
+mod moyu;
 mod store;
 mod updater;
 mod util;
@@ -197,6 +199,16 @@ async fn store_replace_bookshelf(items: Value) -> R<Value> {
 }
 
 #[tauri::command]
+async fn store_get_bookmarks(book_id: String) -> R<Value> {
+    Ok(store::get_bookmarks(&book_id))
+}
+
+#[tauri::command]
+async fn store_save_bookmarks(book_id: String, list: Value) -> R<Value> {
+    Ok(store::save_bookmarks(&book_id, list))
+}
+
+#[tauri::command]
 async fn store_get_settings() -> R<Value> {
     Ok(store::get_settings())
 }
@@ -333,6 +345,32 @@ fn apply_appearance(app: &tauri::AppHandle, mode: &str) {
     }
 }
 
+// ---------------------------------------------------------------- 摸鱼窗口 / 老板键
+#[tauri::command]
+async fn app_boss_key_registered() -> R<bool> {
+    Ok(bosskey::is_registered())
+}
+
+#[tauri::command]
+async fn moyu_open(app: tauri::AppHandle, book_id: String, chapter_id: String, para: i64) -> R<()> {
+    moyu::open(app, book_id, chapter_id, para).await
+}
+
+#[tauri::command]
+async fn moyu_close(app: tauri::AppHandle, chapter_id: String, para: i64) -> R<()> {
+    moyu::close(&app, chapter_id, para)
+}
+
+#[tauri::command]
+async fn moyu_get_prefs() -> R<Value> {
+    Ok(store::get_moyu())
+}
+
+#[tauri::command]
+async fn moyu_save_prefs(patch: Value) -> R<Value> {
+    Ok(store::save_moyu(patch))
+}
+
 #[tauri::command]
 async fn app_get_appearance() -> R<String> {
     Ok(store::get_appearance())
@@ -371,6 +409,11 @@ macro_rules! handlers {
             store_remove_from_bookshelf,
             store_update_bookshelf_item,
             store_replace_bookshelf,
+            store_get_bookmarks,
+            store_save_bookmarks,
+            app_boss_key_registered,
+            moyu_get_prefs,
+            moyu_save_prefs,
             store_get_settings,
             store_save_settings,
             account_get_qrcode,
@@ -392,6 +435,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(Arc::new(AppApi::new()))
         .setup(|app| {
             let root = app.path().app_data_dir()?;
@@ -412,11 +456,12 @@ pub fn run() {
                 });
             }
 
+            bosskey::register(&handle);
             std::thread::spawn(chapters::prune);
             updater::check(handle);
             Ok(())
         })
-        .invoke_handler(handlers!(app_set_appearance))
+        .invoke_handler(handlers!(app_set_appearance, moyu_open, moyu_close))
         .run(tauri::generate_context!())
         .expect("启动失败");
 }
@@ -465,7 +510,7 @@ mod ipc_test {
             ("audio_timepoints", "bookId"), ("audio_narration", "bookId"),
             ("store_add_to_bookshelf", "item"), ("store_remove_from_bookshelf", "bookId"),
             ("store_update_bookshelf_item", "bookId"), ("store_replace_bookshelf", "items"),
-            ("store_save_settings", "settings"), ("account_check_qrcode", "token"),
+            ("store_save_settings", "settings"), ("store_get_bookmarks", "bookId"), ("store_save_bookmarks", "bookId"), ("moyu_save_prefs", "patch"), ("account_check_qrcode", "token"),
             ("account_add_to_cloud_shelf", "bookId"), ("account_remove_from_cloud_shelf", "bookId"),
             ("account_update_cloud_progress", "bookId"), 
         ];
@@ -516,6 +561,13 @@ mod ipc_test {
         assert!(shelf[0]["updatedAt"].as_str().unwrap().ends_with('Z'));
         let shelf = invoke(&webview, "store_remove_from_bookshelf", json!({ "bookId": "42" })).unwrap();
         assert_eq!(shelf, json!([]));
+        let marks = json!([{ "chapterId": "1", "para": 2 }]);
+        invoke(&webview, "store_save_bookmarks", json!({ "bookId": "42", "list": marks })).unwrap();
+        assert_eq!(invoke(&webview, "store_get_bookmarks", json!({ "bookId": "42" })).unwrap(), marks);
+        invoke(&webview, "store_save_bookmarks", json!({ "bookId": "42", "list": [] })).unwrap();
+        assert_eq!(invoke(&webview, "store_get_bookmarks", json!({ "bookId": "42" })).unwrap(), json!([]));
+        let prefs = invoke(&webview, "moyu_save_prefs", json!({ "patch": { "fontSize": 20 } })).unwrap();
+        assert_eq!((prefs["fontSize"].clone(), prefs["color"].clone()), (json!(20), json!("dark")));
         let settings = invoke(&webview, "store_get_settings", json!({})).unwrap();
         assert_eq!(settings["fontSize"], 18);
         assert_eq!(invoke(&webview, "api_categories", json!({})).unwrap()[0]["name"], "男频");

@@ -88,6 +88,7 @@ fn default_settings() -> Value {
     json!({
         "fontSize": 18, "lineHeight": 1.8, "pageWidth": 720,
         "theme": "auto", "fontFamily": "serif", "readingMode": "scroll",
+        "paraSpacing": 0.6, "indent": true,
     })
 }
 
@@ -100,6 +101,54 @@ pub fn save_settings(settings: Value) -> Value {
     let _g = LOCK.lock().unwrap();
     write_json("settings.json", &settings);
     settings
+}
+
+// 书签只存本地：{ [bookId]: Bookmark[] }
+pub fn get_bookmarks(book_id: &str) -> Value {
+    let _g = LOCK.lock().unwrap();
+    read_json("bookmarks.json", json!({}))[book_id].as_array().cloned().map(Value::Array).unwrap_or_else(|| json!([]))
+}
+
+pub fn save_bookmarks(book_id: &str, list: Value) -> Value {
+    let _g = LOCK.lock().unwrap();
+    let mut all = read_json("bookmarks.json", json!({}));
+    if let Some(map) = all.as_object_mut() {
+        if list.as_array().map_or(false, |a| !a.is_empty()) {
+            map.insert(book_id.to_string(), list.clone());
+        } else {
+            map.remove(book_id);
+        }
+    }
+    write_json("bookmarks.json", &all);
+    list
+}
+
+fn default_moyu() -> Value {
+    json!({ "bounds": null, "opacity": 0, "fontSize": 15, "color": "dark" })
+}
+
+/// 摸鱼窗口的位置、大小和外观，单独一个文件
+pub fn get_moyu() -> Value {
+    let _g = LOCK.lock().unwrap();
+    let mut v = default_moyu();
+    if let (Some(dst), Some(src)) = (v.as_object_mut(), read_json("moyu.json", json!({})).as_object()) {
+        for (k, x) in src {
+            dst.insert(k.clone(), x.clone());
+        }
+    }
+    v
+}
+
+pub fn save_moyu(patch: Value) -> Value {
+    let mut v = get_moyu();
+    let _g = LOCK.lock().unwrap();
+    if let (Some(dst), Some(src)) = (v.as_object_mut(), patch.as_object()) {
+        for (k, x) in src {
+            dst.insert(k.clone(), x.clone());
+        }
+    }
+    write_json("moyu.json", &v);
+    v
 }
 
 const APPEARANCES: [&str; 3] = ["system", "light", "dark"];
@@ -125,7 +174,7 @@ pub fn migrate_legacy(old_dir: &std::path::Path) {
         return;
     }
     let _ = std::fs::create_dir_all(&dir);
-    for name in ["bookshelf.json", "settings.json", "appearance.json", "device.json"] {
+    for name in ["bookshelf.json", "settings.json", "appearance.json", "device.json", "bookmarks.json", "moyu.json"] {
         let src = old_dir.join(name);
         if src.exists() && !dir.join(name).exists() {
             let _ = std::fs::copy(&src, dir.join(name));
