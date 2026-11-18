@@ -22,6 +22,16 @@ function createWindow() {
     callback({ responseHeaders: headers });
   });
 
+  // 听书音频的 CDN 见到 Referer 就返回 403，App 里本来也不带
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://*.fqnovelvod.com/*', 'https://*.zjcdn.com/*'] },
+    (details, callback) => {
+      const headers = { ...details.requestHeaders };
+      delete headers.Referer;
+      callback({ requestHeaders: headers });
+    },
+  );
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,

@@ -4,12 +4,15 @@ import { useReader, type Segment } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useAccount } from '@/stores/account';
 import { ConfigProvider, Popover, Slider } from 'antd';
-import { CommentOutlined, FullscreenExitOutlined, FullscreenOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import {
+  CommentOutlined, CustomerServiceOutlined, FullscreenExitOutlined, FullscreenOutlined, UnorderedListOutlined,
+} from '@ant-design/icons';
 import type { Chapter } from '@/types';
 import * as api from '@/services/api';
 import CommentDrawer from '@/components/CommentDrawer';
 import SettingsPanel from '@/components/Reader/SettingsPanel';
 import TocDrawer from '@/components/Reader/TocDrawer';
+import AudioBar from '@/components/Reader/AudioBar';
 import { FONTS } from '@/components/Reader/options';
 import { useTheme, antdConfig } from '@/stores/theme';
 
@@ -103,6 +106,8 @@ export default function Reader() {
   const [progress, setProgress] = useState(0);
   // 拖动进度条时预览的章节序号
   const [preview, setPreview] = useState<number | null>(null);
+  // 听书从哪章哪段开始；null 表示没在听
+  const [listenFrom, setListenFrom] = useState<{ chapterId: string; para: number } | null>(null);
   const lastTopRef = useRef(0);
 
   const {
@@ -332,6 +337,14 @@ export default function Reader() {
     return () => window.removeEventListener('keydown', handler);
   }); // 每次渲染重新绑定，拿到最新的状态
 
+  /** 从视口顶部那一段开始听；段落序号换成段评同款 idx，和音频时间轴对得上 */
+  const startListen = () => {
+    const pos = posRef.current;
+    if (!pos) return;
+    const seg = useReader.getState().segments.find((g) => g.chapter.id === pos.ch);
+    setListenFrom({ chapterId: pos.ch, para: Math.max(0, seg?.paraIdx[pos.para] ?? 0) });
+  };
+
   const onComment = useCallback((p: CommentPara) => {
     setCommentCh(p.chapterId);
     setCommentPara(p);
@@ -348,7 +361,7 @@ export default function Reader() {
   return (
     <ConfigProvider theme={antdConfig(readerDark)} getPopupContainer={() => containerRef.current || document.body}>
       <div
-        className="reader-container"
+        className={`reader-container${listenFrom ? ' listening' : ''}`}
         ref={containerRef}
         data-reader-theme={settings.theme === 'auto' ? undefined : settings.theme}
         onMouseMove={(e) => {
@@ -365,6 +378,13 @@ export default function Reader() {
           </button>
           <span className="reader-title">{curChapter?.title || ''}</span>
           <div className="reader-tools">
+            <button
+              className={`reader-tool${listenFrom ? ' active' : ''}`}
+              title={listenFrom ? '关闭听书' : '听书'}
+              onClick={() => (listenFrom ? setListenFrom(null) : startListen())}
+            >
+              <CustomerServiceOutlined />
+            </button>
             <button
               className="reader-tool"
               title={fullScreen ? '退出全屏（F）' : '全屏（F）'}
@@ -438,6 +458,20 @@ export default function Reader() {
           />
           <button onClick={() => goChapter(1)} disabled={curIdx < 0 || curIdx >= chapters.length - 1}>下一章</button>
         </div>
+
+        {bookId && listenFrom && (
+          <AudioBar
+            bookId={bookId}
+            bookTitle={bookTitle}
+            bodyRef={bodyRef}
+            start={listenFrom}
+            onFollow={(id) => {
+              const c = useReader.getState().chapters.find((x) => x.id === id);
+              if (c) jump(c);
+            }}
+            onClose={() => setListenFrom(null)}
+          />
+        )}
 
         <TocDrawer
           open={tocOpen}
