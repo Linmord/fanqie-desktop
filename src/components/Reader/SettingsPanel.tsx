@@ -1,6 +1,6 @@
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import { useReader } from '@/stores/reader';
-import { FONT_SIZE, FONTS, LINE_HEIGHTS, PAGE_WIDTHS, THEMES } from './options';
+import { FONT_SIZE, FONTS, INDENTS, LINE_HEIGHTS, PARA_SPACINGS, PAGE_WIDTHS, READING_MODES, THEMES } from './options';
 
 function Seg<T extends string | number>({ options, value, onChange }: {
   options: { value: T; label: string }[];
@@ -18,13 +18,17 @@ function Seg<T extends string | number>({ options, value, onChange }: {
   );
 }
 
-/** 「Aa」浮层：字号、行高、宽度、字体、主题，改动立即生效 */
+/** 「Aa」浮层：翻页方式、字号、行高、段距、缩进、宽度、字体、主题，改动立即生效 */
 export default function SettingsPanel() {
   const { settings, updateSettings } = useReader();
   const { fontSize } = settings;
 
   return (
     <div className="reader-settings">
+      <div className="rs-row">
+        <span className="rs-label">翻页</span>
+        <Seg options={READING_MODES} value={settings.readingMode} onChange={(readingMode) => updateSettings({ readingMode })} />
+      </div>
       <div className="rs-row">
         <span className="rs-label">字号</span>
         <div className="rs-stepper">
@@ -40,6 +44,18 @@ export default function SettingsPanel() {
       <div className="rs-row">
         <span className="rs-label">行距</span>
         <Seg options={LINE_HEIGHTS} value={settings.lineHeight} onChange={(lineHeight) => updateSettings({ lineHeight })} />
+      </div>
+      <div className="rs-row">
+        <span className="rs-label">段距</span>
+        <Seg options={PARA_SPACINGS} value={settings.paraSpacing} onChange={(paraSpacing) => updateSettings({ paraSpacing })} />
+      </div>
+      <div className="rs-row">
+        <span className="rs-label">缩进</span>
+        <Seg
+          options={INDENTS}
+          value={settings.indent ? 'on' : 'off'}
+          onChange={(v) => updateSettings({ indent: v === 'on' })}
+        />
       </div>
       <div className="rs-row">
         <span className="rs-label">宽度</span>

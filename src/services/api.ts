@@ -11,6 +11,8 @@ const noopSettings = () => Promise.resolve({
   theme: 'auto' as const,
   fontFamily: 'serif' as const,
   readingMode: 'scroll' as const,
+  paraSpacing: 0.6,
+  indent: true,
 });
 
 const fallback: NativeAPI = {
@@ -45,10 +47,19 @@ const fallback: NativeAPI = {
   addToCloudShelf: () => Promise.resolve(),
   removeFromCloudShelf: () => Promise.resolve(),
   updateCloudProgress: () => Promise.resolve(),
+  getBookmarks: noopArr,
+  saveBookmarks: (_id, list) => Promise.resolve(list),
   getSettings: noopSettings,
   saveSettings: noopSettings as NativeAPI['saveSettings'],
   getAppearance: () => Promise.resolve('system' as const),
   setAppearance: (mode) => Promise.resolve(mode),
+  bossKeyRegistered: () => Promise.resolve(true),
+  openMoyu: () => Promise.resolve(),
+  closeMoyu: () => Promise.resolve(),
+  setMoyuBounds: () => Promise.resolve(),
+  getMoyuPrefs: () => Promise.resolve({ bounds: null, opacity: 0, fontSize: 15, color: 'dark' as const }),
+  saveMoyuPrefs: (patch) => Promise.resolve({ bounds: null, opacity: 0, fontSize: 15, color: 'dark' as const, ...patch }),
+  onMoyuExit: () => () => {},
   // 浏览器里预览时退回网页全屏
   isFullScreen: () => Promise.resolve(!!document.fullscreenElement),
   toggleFullScreen: () =>
@@ -97,10 +108,20 @@ export const addToCloudShelf = api.addToCloudShelf.bind(api);
 export const removeFromCloudShelf = api.removeFromCloudShelf.bind(api);
 export const updateCloudProgress = api.updateCloudProgress.bind(api);
 
+export const getBookmarks = api.getBookmarks.bind(api);
+export const saveBookmarks = api.saveBookmarks.bind(api);
 export const getSettings = api.getSettings.bind(api);
 export const saveSettings = api.saveSettings.bind(api);
 export const getAppearance = api.getAppearance.bind(api);
 export const setAppearance = api.setAppearance.bind(api);
+export const bossKeyRegistered = api.bossKeyRegistered.bind(api);
 export const isFullScreen = api.isFullScreen.bind(api);
 export const toggleFullScreen = api.toggleFullScreen.bind(api);
 export const onFullScreenChange = api.onFullScreenChange.bind(api);
+
+export const openMoyu = api.openMoyu.bind(api);
+export const closeMoyu = api.closeMoyu.bind(api);
+export const setMoyuBounds = api.setMoyuBounds.bind(api);
+export const getMoyuPrefs = api.getMoyuPrefs.bind(api);
+export const saveMoyuPrefs = api.saveMoyuPrefs.bind(api);
+export const onMoyuExit = api.onMoyuExit.bind(api);

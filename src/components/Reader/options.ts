@@ -1,11 +1,27 @@
-import type { ReaderFontId, ReaderSettings, ReaderThemeId } from '@/types';
+import type { ReaderFontId, ReaderSettings, ReaderThemeId, ReadingMode } from '@/types';
 
 export const FONT_SIZE = { min: 14, max: 28 };
+
+export const READING_MODES: { value: ReadingMode; label: string }[] = [
+  { value: 'scroll', label: '滚动' },
+  { value: 'page', label: '翻页' },
+];
 
 export const LINE_HEIGHTS = [
   { value: 1.6, label: '紧凑' },
   { value: 1.8, label: '标准' },
   { value: 2.1, label: '宽松' },
+];
+
+export const PARA_SPACINGS = [
+  { value: 0.3, label: '紧凑' },
+  { value: 0.6, label: '标准' },
+  { value: 1, label: '宽松' },
+];
+
+export const INDENTS = [
+  { value: 'on', label: '空两字' },
+  { value: 'off', label: '顶格' },
 ];
 
 export const PAGE_WIDTHS = [
@@ -35,6 +51,8 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   theme: 'auto',
   fontFamily: 'serif',
   readingMode: 'scroll',
+  paraSpacing: 0.6,
+  indent: true,
 };
 
 const pick = <T,>(list: { value: T }[], v: unknown, fallback: T): T =>
@@ -50,6 +68,8 @@ export function normalizeSettings(raw: Partial<Record<keyof ReaderSettings, unkn
     pageWidth: pick(PAGE_WIDTHS, raw?.pageWidth, d.pageWidth),
     theme: pick(THEMES, raw?.theme, d.theme),
     fontFamily: pick(FONTS, raw?.fontFamily, d.fontFamily),
-    readingMode: 'scroll',
+    readingMode: pick(READING_MODES, raw?.readingMode, d.readingMode),
+    paraSpacing: pick(PARA_SPACINGS, raw?.paraSpacing, d.paraSpacing),
+    indent: typeof raw?.indent === 'boolean' ? raw.indent : d.indent,
   };
 }

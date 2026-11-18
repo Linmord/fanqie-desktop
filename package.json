@@ -1,6 +1,6 @@
 {
   "name": "fanqie-desktop",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "番茄小说桌面客户端",
   "scripts": {
     "dev": "tauri dev",

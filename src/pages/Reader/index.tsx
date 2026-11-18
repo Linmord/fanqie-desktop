@@ -1,93 +1,28 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useReader, type Segment } from '@/stores/reader';
+import { useReader } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useAccount } from '@/stores/account';
 import { ConfigProvider, Popover, Slider } from 'antd';
 import {
-  CommentOutlined, CustomerServiceOutlined, FullscreenExitOutlined, FullscreenOutlined, UnorderedListOutlined,
+  CustomerServiceOutlined, FullscreenExitOutlined, FullscreenOutlined, UnorderedListOutlined,
 } from '@ant-design/icons';
-import type { Chapter } from '@/types';
+import type { Bookmark, Chapter } from '@/types';
 import * as api from '@/services/api';
 import CommentDrawer from '@/components/CommentDrawer';
 import SettingsPanel from '@/components/Reader/SettingsPanel';
 import TocDrawer from '@/components/Reader/TocDrawer';
 import AudioBar from '@/components/Reader/AudioBar';
 import { FONTS } from '@/components/Reader/options';
+import { splitParagraphs } from '@/components/Reader/text';
+import { BookmarkIcon } from '@/components/Reader/BookmarkIcon';
+import SearchBar, { focusSearch } from '@/components/Reader/SearchBar';
+import SegmentView, { type CommentPara } from '@/components/Reader/SegmentView';
+import PagedView, { type PagedHandle, type PagedTarget } from '@/components/Reader/PagedView';
 import { useTheme, antdConfig } from '@/stores/theme';
 
 // macOS 隐藏式标题栏的红绿灯压在阅读页左上角，工具栏要让开
 const isMac = navigator.userAgent.includes('Mac');
-
-type CommentPara = { chapterId: string; index: number; text: string; count: number };
-
-/** 反爬字体按章生效：把字体名换成带章节 id 的名字，避免相邻两章的同名字体互相覆盖 */
-function scopeFont(css: string, chapterId: string) {
-  const name = css.match(/font-family:\s*([^;,}]+)/)?.[1]?.trim();
-  if (!name) return null;
-  const family = `fq-font-${chapterId}`;
-  return { css: css.split(name).join(`"${family}"`), family };
-}
-
-/** 章节流里的一章。单独 memo，滚动时更新进度不会重渲染所有段落 */
-const SegmentView = memo(function SegmentView({ seg, fontStack, titleSize, loggedIn, onComment, onRetry, onLogin }: {
-  seg: Segment;
-  fontStack: string;
-  titleSize: number;
-  loggedIn: boolean;
-  onComment: (p: CommentPara) => void;
-  onRetry: (chapterId: string) => void;
-  onLogin: () => void;
-}) {
-  const { chapter, status, content, fontCss, paraIdx, commentStats } = seg;
-  const font = fontCss ? scopeFont(fontCss, chapter.id) : null;
-  return (
-    <section
-      className="reader-seg"
-      data-seg={chapter.id}
-      style={font ? { fontFamily: `"${font.family}", ${fontStack}` } : undefined}
-    >
-      {font && <style dangerouslySetInnerHTML={{ __html: font.css }} />}
-      <h2 className="reader-chapter-title reader-anchor" data-ch={chapter.id} data-para={0} style={{ fontSize: titleSize }}>
-        {chapter.title}
-      </h2>
-      {status === 'loading' && <div className="reader-seg-status">加载中…</div>}
-      {status === 'error' && (
-        <div className="reader-seg-status error">
-          <p>{seg.error || '本章加载失败'}</p>
-          <div className="reader-seg-actions">
-            <button onClick={() => onRetry(chapter.id)}>重试</button>
-            {!loggedIn && <button onClick={onLogin}>登录</button>}
-          </div>
-        </div>
-      )}
-      {status === 'ready' && content.split('\n').map((text, i) => {
-        const idx = paraIdx[i] ?? -1;
-        const count = commentStats[idx] || 0;
-        return (
-          <p key={i} className="reader-para reader-anchor" data-ch={chapter.id} data-para={i}>
-            {idx >= 0 ? (
-              <>
-                {text.slice(0, -1)}
-                {/* 气泡和最后一个字绑在一起，避免单独掉到下一行；没有段评的段落悬停才显示 */}
-                <span className="para-tail">
-                  {text.slice(-1)}
-                  <button
-                    className={`para-comment${count ? '' : ' empty'}`}
-                    title={count ? '查看段评' : '写段评'}
-                    onClick={() => onComment({ chapterId: chapter.id, index: idx, text, count })}
-                  >
-                    {count ? (count > 999 ? '999+' : count) : <CommentOutlined />}
-                  </button>
-                </span>
-              </>
-            ) : text}
-          </p>
-        );
-      })}
-    </section>
-  );
-});
 
 export default function Reader() {
   const { bookId, chapterId } = useParams<{ bookId: string; chapterId: string }>();
@@ -109,6 +44,9 @@ export default function Reader() {
   // 听书从哪章哪段开始；null 表示没在听
   const [listenFrom, setListenFrom] = useState<{ chapterId: string; para: number } | null>(null);
   const lastTopRef = useRef(0);
+  // 翻页模式的页码，用于右下角进度
+  const [pageInfo, setPageInfo] = useState({ page: 0, count: 1 });
+  const pagedRef = useRef<PagedHandle>(null);
 
   const {
     chapters, segments, currentId, settings,
@@ -117,6 +55,11 @@ export default function Reader() {
   const loggedIn = useAccount((s) => !!s.user);
   const openLogin = useAccount((s) => s.openLogin);
   const bookTitle = useBookshelf((s) => s.items.find((i) => i.book.id === bookId)?.book.title) || '';
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  // 当前位置（章 id:段号），书签按钮据此高亮。字符串相同时 setState 不会重渲染
+  const [posKey, setPosKey] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const paged = settings.readingMode === 'page';
 
   const updateProgress = useBookshelf((s) => s.updateProgress);
   const savePosition = useBookshelf((s) => s.savePosition);
@@ -127,8 +70,8 @@ export default function Reader() {
     const item = useBookshelf.getState().items.find((i) => i.book.id === bookId);
     restoreRef.current = item?.lastReadParaIndex ? { chapterId: item.lastReadChapterId, para: item.lastReadParaIndex } : null;
   }
-  // 章节流重置后要滚到的位置：等目标章正文到了再滚
-  const pendingRef = useRef<{ chapterId: string; para: number } | null>(null);
+  // 章节流重置（或翻页模式换章）后要停的位置：等目标章正文到了再定位
+  const pendingRef = useRef<PagedTarget | null>(null);
   // 视口顶部的那一段及其屏幕位置。章节流在上方增删内容、或改字号后，靠它把位置拉回来
   const anchorRef = useRef<{ el: HTMLElement; top: number } | null>(null);
   // 视口顶部是哪章第几段；滚动停下后再写盘
@@ -159,6 +102,12 @@ export default function Reader() {
     openAt(chapter);
   }, [openAt]);
 
+  // 从摸鱼窗口回来：从那边读到的章节和段落重新打开章节流
+  useEffect(() => api.onMoyuExit(({ chapterId: ch, para }) => {
+    const target = useReader.getState().chapters.find((c) => c.id === ch);
+    if (target) jump(target, para);
+  }), [jump]);
+
   useEffect(() => {
     if (!bookId) return;
     loadChapters(bookId).then(() => {
@@ -170,6 +119,82 @@ export default function Reader() {
       jump(target, r && r.chapterId === target.id ? r.para : 0);
     });
   }, [bookId, chapterId, loadChapters, jump]);
+
+  // 切换滚动 / 翻页：按当前读到的段落重新打开。必须在渲染时就记下位置——
+  // 新模式的视图先挂载，会把 posRef 改写成它的第一页 / 视口顶部。
+  // 还没定位过（刚打开、设置刚读到）就交给新模式去消费待恢复的位置
+  const modeRef = useRef(settings.readingMode);
+  const switchRef = useRef<PagedTarget | null>(null);
+  if (modeRef.current !== settings.readingMode) {
+    modeRef.current = settings.readingMode;
+    const pos = posRef.current;
+    if (!pendingRef.current && pos) {
+      switchRef.current = { chapterId: pos.ch, para: pos.para };
+      // 翻页视图直接消费它；滚动视图要重置章节流，在下面的 effect 里跳
+      pendingRef.current = switchRef.current;
+    }
+  }
+  useEffect(() => {
+    setChromeVisible(!paged);
+    const t = switchRef.current;
+    switchRef.current = null;
+    if (!t || paged) return;
+    const ch = useReader.getState().chapters.find((c) => c.id === t.chapterId);
+    if (ch) jump(ch, t.para);
+  }, [paged, jump]);
+
+  // 翻页模式只渲染当前章，但前后章都要先加载好，翻过章首章末时没有等待
+  useEffect(() => {
+    if (!paged) return;
+    const s = useReader.getState();
+    const i = s.segments.findIndex((g) => g.chapter.id === s.currentId);
+    if (i < 0) return;
+    if (i === s.segments.length - 1) s.appendNext();
+    if (i === 0) useReader.getState().prependPrev();
+  }, [paged, segments, currentId]);
+
+  useEffect(() => {
+    if (bookId) api.getBookmarks(bookId).then(setBookmarks);
+  }, [bookId]);
+
+  // 每章有书签的段号，给正文画标记；没变的章沿用同一个 Set，段落不必重渲染
+  const marks = useMemo(() => {
+    const m = new Map<string, Set<number>>();
+    bookmarks.forEach((b) => (m.get(b.chapterId) || m.set(b.chapterId, new Set()).get(b.chapterId)!).add(b.para));
+    return m;
+  }, [bookmarks]);
+  const marked = bookmarks.some((b) => `${b.chapterId}:${b.para}` === posKey);
+
+  /** 当前位置有书签就删掉，没有就加上 */
+  const toggleBookmark = () => {
+    const pos = posRef.current;
+    if (!bookId || !pos) return;
+    const { chapters: list, segments: segs } = useReader.getState();
+    let next: Bookmark[];
+    if (bookmarks.some((b) => b.chapterId === pos.ch && b.para === pos.para)) {
+      next = bookmarks.filter((b) => !(b.chapterId === pos.ch && b.para === pos.para));
+    } else {
+      const seg = segs.find((g) => g.chapter.id === pos.ch);
+      const text = seg ? splitParagraphs(seg.content).find((p) => p.line >= pos.para)?.text || '' : '';
+      const order = (id: string) => list.findIndex((c) => c.id === id);
+      next = [...bookmarks, {
+        chapterId: pos.ch,
+        chapterTitle: list.find((c) => c.id === pos.ch)?.title || '',
+        para: pos.para,
+        excerpt: text.slice(0, 40),
+        createdAt: Date.now(),
+      }].sort((a, b) => order(a.chapterId) - order(b.chapterId) || a.para - b.para);
+    }
+    setBookmarks(next);
+    api.saveBookmarks(bookId, next);
+  };
+
+  const removeBookmark = (bm: Bookmark) => {
+    if (!bookId) return;
+    const next = bookmarks.filter((b) => b !== bm);
+    setBookmarks(next);
+    api.saveBookmarks(bookId, next);
+  };
 
   // 当前章变了就更新书架进度（会同步云端）
   useEffect(() => {
@@ -216,6 +241,7 @@ export default function Reader() {
     anchorRef.current = { el: a, top: a.getBoundingClientRect().top };
     const ch = a.dataset.ch!;
     posRef.current = { ch, para: Number(a.dataset.para) || 0 };
+    setPosKey(`${ch}:${posRef.current.para}`);
     setCurrent(ch);
     const seg = body.querySelector<HTMLElement>(`[data-seg="${CSS.escape(ch)}"]`);
     if (seg) {
@@ -249,8 +275,10 @@ export default function Reader() {
         return;
       }
       pendingRef.current = null;
+      // 记下的那一行可能已被清洗掉（空行），取它之后的第一段
       const el = pending.para > 0
-        ? body.querySelector<HTMLElement>(`[data-seg="${CSS.escape(first.chapter.id)}"] .reader-para[data-para="${pending.para}"]`)
+        ? [...body.querySelectorAll<HTMLElement>(`[data-seg="${CSS.escape(first.chapter.id)}"] .reader-para`)]
+          .find((p) => Number(p.dataset.para) >= pending.para) || null
         : null;
       body.scrollTop = el ? body.scrollTop + el.getBoundingClientRect().top - body.getBoundingClientRect().top : 0;
       if (!el) setChromeVisible(true);
@@ -264,7 +292,7 @@ export default function Reader() {
     lastTopRef.current = body.scrollTop;
     track();
     grow();
-  }, [segments, settings.fontSize, settings.lineHeight, settings.pageWidth, settings.fontFamily]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [segments, settings.fontSize, settings.lineHeight, settings.pageWidth, settings.fontFamily, settings.paraSpacing, settings.indent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onScroll = () => {
     const body = bodyRef.current;
@@ -282,8 +310,32 @@ export default function Reader() {
     saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
   };
 
+  /** 翻页模式换章：已加载就直接切过去，否则重置章节流。往回翻进上一章时停在它的最后一页 */
+  const turnChapter = (delta: number, toLast = false) => {
+    const { chapters: list, currentId: cur, segments: segs } = useReader.getState();
+    const target = list[list.findIndex((c) => c.id === cur) + delta];
+    if (!target) return;
+    const goal: PagedTarget = { chapterId: target.id, para: 0, ...(toLast && { edge: 'last' as const }) };
+    if (segs.some((g) => g.chapter.id === target.id)) {
+      pendingRef.current = goal;
+      setCurrent(target.id);
+    } else {
+      jump(target);
+      pendingRef.current = goal;
+    }
+  };
+
+  /** 翻页模式下记下当前页开头的段落，翻停后再写盘 */
+  const onPagedPosition = useCallback((ch: string, para: number) => {
+    posRef.current = { ch, para };
+    setPosKey(`${ch}:${para}`);
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => savePosRef.current(), 600);
+  }, []);
+
   /** 跳到前后章的章首：已经在流里就直接滚过去，否则重置章节流 */
   const goChapter = (delta: number) => {
+    if (paged) return turnChapter(delta);
     const body = bodyRef.current;
     const { chapters: list, currentId: cur, segments: segs } = useReader.getState();
     const target = list[list.findIndex((c) => c.id === cur) + delta];
@@ -297,10 +349,18 @@ export default function Reader() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // 段评、目录抽屉打开时，按键留给抽屉；带修饰键的组合留给系统
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 'f' || e.key === 'F') && !commentPara && !tocOpen) {
+        e.preventDefault();
+        if (searchOpen) focusSearch();
+        else setSearchOpen(true);
+        return;
+      }
+      // 段评、目录抽屉打开时，按键留给抽屉；带修饰键的组合留给系统；输入框里打字不触发快捷键
       if (commentPara || tocOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement).closest?.('input, textarea')) return;
       if (e.key === 'Escape') {
-        if (settingsOpen) setSettingsOpen(false);
+        if (searchOpen) setSearchOpen(false);
+        else if (settingsOpen) setSettingsOpen(false);
         else if (fullScreen) api.toggleFullScreen();
         else nav(-1);
         return;
@@ -309,9 +369,31 @@ export default function Reader() {
         api.toggleFullScreen();
         return;
       }
+      if (e.key === 'b' || e.key === 'B') {
+        toggleBookmark();
+        return;
+      }
       if (e.key === 't' || e.key === 'T') {
         setSettingsOpen(false);
         setTocOpen(true);
+        return;
+      }
+      // 翻页模式：左右、上下、空格、PageUp/PageDown 都是翻页
+      if (paged) {
+        const flip = (dir: 1 | -1) => {
+          e.preventDefault();
+          if (dir > 0) pagedRef.current?.next();
+          else pagedRef.current?.prev();
+        };
+        switch (e.key) {
+          case 'ArrowRight':
+          case 'ArrowDown':
+          case 'PageDown': return flip(1);
+          case 'ArrowLeft':
+          case 'ArrowUp':
+          case 'PageUp': return flip(-1);
+          case ' ': return flip(e.shiftKey ? -1 : 1);
+        }
         return;
       }
       const body = bodyRef.current;
@@ -364,6 +446,10 @@ export default function Reader() {
         className={`reader-container${listenFrom ? ' listening' : ''}`}
         ref={containerRef}
         data-reader-theme={settings.theme === 'auto' ? undefined : settings.theme}
+        style={{
+          ['--para-spacing' as string]: `${settings.paraSpacing}em`,
+          ['--para-indent' as string]: settings.indent ? '2em' : '0',
+        }}
         onMouseMove={(e) => {
           if (e.clientY < 72 || e.clientY > window.innerHeight - 72) setChromeVisible(true);
         }}
@@ -379,6 +465,26 @@ export default function Reader() {
           </button>
           <span className="reader-title">{curChapter?.title || ''}</span>
           <div className="reader-tools">
+            <button
+              className={`reader-tool${marked ? ' marked' : ''}`}
+              title={marked ? '删除书签（B）' : '添加书签（B）'}
+              onClick={toggleBookmark}
+            >
+              <BookmarkIcon filled={marked} />
+            </button>
+            <button
+              className="reader-tool"
+              title="摸鱼：透明小窗只显示正文，⌥+Q 一键隐藏"
+              onClick={() => {
+                const pos = posRef.current;
+                if (!bookId || !pos) return;
+                // 先把章内位置写盘，摸鱼窗口从同一段接着读
+                savePosRef.current();
+                api.openMoyu(bookId, pos.ch, pos.para);
+              }}
+            >
+              摸鱼
+            </button>
             <button
               className={`reader-tool${listenFrom ? ' active' : ''}`}
               title={listenFrom ? '关闭听书' : '听书'}
@@ -406,6 +512,28 @@ export default function Reader() {
           </div>
         </div>
 
+        {paged && segments.length > 0 ? (
+          <PagedView
+            ref={pagedRef}
+            seg={segments.find((g) => g.chapter.id === currentId)}
+            settings={settings}
+            fontStack={fontStack}
+            loggedIn={loggedIn}
+            onComment={onComment}
+            onRetry={retry}
+            onLogin={openLogin}
+            pending={pendingRef}
+            onPosition={onPagedPosition}
+            onPageChange={(page, count) => {
+              setPageInfo({ page, count });
+              // 翻页时收起工具栏
+              setChromeVisible(false);
+            }}
+            onEdge={(dir) => turnChapter(dir, dir < 0)}
+            onToggleChrome={() => setChromeVisible((v) => !v)}
+            marked={marks.get(currentId)}
+          />
+        ) : (
         <div className="reader-body" ref={bodyRef} onScroll={onScroll}>
           {segments.length === 0 ? (
             <div className="loading">加载中...</div>
@@ -424,20 +552,23 @@ export default function Reader() {
                   key={seg.chapter.id}
                   seg={seg}
                   fontStack={fontStack}
-                  titleSize={settings.fontSize + 4}
                   loggedIn={loggedIn}
                   onComment={onComment}
                   onRetry={retry}
                   onLogin={openLogin}
+                  marked={marks.get(seg.chapter.id)}
                 />
               ))}
             </div>
           )}
         </div>
+        )}
 
         {curIdx >= 0 && curReady && (
           <div className="reader-progress">
-            第 {curIdx + 1}/{chapters.length} 章 · 本章 {Math.round(progress * 100)}%
+            第 {curIdx + 1}/{chapters.length} 章 · 本章 {paged
+              ? `${pageInfo.page + 1}/${pageInfo.count} 页`
+              : `${Math.round(progress * 100)}%`}
           </div>
         )}
 
@@ -460,6 +591,31 @@ export default function Reader() {
           <button onClick={() => goChapter(1)} disabled={curIdx < 0 || curIdx >= chapters.length - 1}>下一章</button>
         </div>
 
+        {searchOpen && (
+          <SearchBar
+            onClose={() => setSearchOpen(false)}
+            getRoot={() => document.querySelector(`.reader-container [data-seg="${CSS.escape(currentId)}"]`)}
+            version={segments.find((g) => g.chapter.id === currentId)}
+            isAhead={(range) => {
+              const r = range.getBoundingClientRect();
+              if (paged) {
+                const view = document.querySelector('.reader-page-view')?.getBoundingClientRect();
+                return !view || r.left >= view.left - 1;
+              }
+              const body = bodyRef.current;
+              return !body || r.top >= body.getBoundingClientRect().top;
+            }}
+            onReveal={(range) => {
+              if (paged) return pagedRef.current?.reveal(range);
+              const body = bodyRef.current;
+              if (!body) return;
+              const r = range.getBoundingClientRect();
+              const b = body.getBoundingClientRect();
+              body.scrollTop += r.top - b.top - body.clientHeight / 2;
+            }}
+          />
+        )}
+
         {bookId && listenFrom && (
           <AudioBar
             bookId={bookId}
@@ -481,6 +637,12 @@ export default function Reader() {
           chapters={chapters}
           currentId={currentId}
           onSelect={(c) => c.id !== currentId && jump(c)}
+          bookmarks={bookmarks}
+          onSelectBookmark={(b) => {
+            const ch = chapters.find((c) => c.id === b.chapterId);
+            if (ch) jump(ch, b.para);
+          }}
+          onRemoveBookmark={removeBookmark}
           topInset={isMac && !fullScreen}
         />
 

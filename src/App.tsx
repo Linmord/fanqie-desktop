@@ -5,6 +5,7 @@ import Search from './pages/Search';
 import Bookshelf from './pages/Bookshelf';
 import BookDetail from './pages/BookDetail';
 import Reader from './pages/Reader';
+import Moyu from './pages/Moyu';
 import LoginModal from './components/LoginModal';
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
     <>
       <Routes>
         <Route path="/reader/:bookId/:chapterId" element={<Reader />} />
+        <Route path="/moyu/:bookId/:chapterId" element={<Moyu />} />
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="/search" element={<Search />} />

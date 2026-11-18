@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Avatar, Dropdown, Tooltip } from 'antd';
+import { Avatar, Dropdown, Tooltip, message } from 'antd';
 import {
   HomeOutlined,
   SearchOutlined,
@@ -15,12 +15,16 @@ import { useAccount } from '@/stores/account';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useTheme, appearanceLabel } from '@/stores/theme';
 import AboutModal from '@/components/AboutModal';
+import * as api from '@/services/api';
 
 const appearanceIcon = {
   system: <DesktopOutlined />,
   light: <SunOutlined />,
   dark: <MoonOutlined />,
 };
+
+// 老板键被占用的提示每次启动只弹一次，Layout 重新挂载时不重复
+let bossKeyChecked = false;
 
 const navItems = [
   { to: '/', icon: <HomeOutlined />, label: '发现' },
@@ -37,6 +41,14 @@ export default function Layout() {
   useEffect(() => {
     init().then(() => useBookshelf.getState().load());
   }, [init]);
+
+  useEffect(() => {
+    if (bossKeyChecked) return;
+    bossKeyChecked = true;
+    api.bossKeyRegistered().then((ok) => {
+      if (!ok) message.warning('老板键 ⌥+Q 被其他 App 占用，暂时无法使用');
+    });
+  }, []);
 
   return (
     <>
