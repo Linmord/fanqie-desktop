@@ -26,6 +26,10 @@ const fallback: ElectronAPI = {
   commentReply: () => Promise.reject(new Error('请在桌面客户端中回复')),
   commentDigg: () => Promise.reject(new Error('请在桌面客户端中点赞')),
   commentEmojis: () => Promise.resolve({}),
+  audioTones: noopArr,
+  audioPlayInfo: () => Promise.reject(new Error('请在桌面客户端中听书')),
+  audioTimepoints: noopArr,
+  audioNarration: () => Promise.reject(new Error('请在桌面客户端中听书')),
   categories: () => Promise.resolve([]),
   ranking: noop,
   recommend: noopArr,
@@ -78,6 +82,10 @@ export const commentReplies = api.commentReplies.bind(api);
 export const commentAdd = api.commentAdd.bind(api);
 export const commentReply = api.commentReply.bind(api);
 export const commentDigg = api.commentDigg.bind(api);
+export const audioTones = api.audioTones.bind(api);
+export const audioPlayInfo = api.audioPlayInfo.bind(api);
+export const audioTimepoints = api.audioTimepoints.bind(api);
+export const audioNarration = api.audioNarration.bind(api);
 export const commentEmojis = api.commentEmojis.bind(api);
 export const categories = api.categories.bind(api);
 export const ranking = api.ranking.bind(api);

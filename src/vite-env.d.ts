@@ -12,6 +12,10 @@ interface ElectronAPI {
   commentReply(itemId: string, bookId: string, paraIndex: number, paraText: string, rootId: string, toUserId: string, text: string, toReplyId?: string): Promise<import('./types').ParaComment>;
   commentDigg(bookId: string, id: string, like: boolean, isReply: boolean, serviceId: number): Promise<void>;
   commentEmojis(): Promise<Record<string, string>>;
+  audioTones(bookId: string): Promise<import('./types').AudioTone[]>;
+  audioPlayInfo(itemId: string, toneId: number): Promise<{ url: string; backupUrl: string }>;
+  audioTimepoints(bookId: string, itemId: string, toneId: number): Promise<import('./types').AudioTimepoint[]>;
+  audioNarration(bookId: string, itemId: string, abookId: string): Promise<import('./types').AudioNarration>;
   categories(): Promise<{ id: string; name: string; children: { id: string; name: string }[] }[]>;
   ranking(rankId?: string, page?: number): Promise<import('./types').SearchResult>;
   recommend(): Promise<{ title: string; books: import('./types').Book[] }[]>;

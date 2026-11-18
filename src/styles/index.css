@@ -451,6 +451,131 @@ body {
   cursor: default;
 }
 
+/* ---------- 听书 ---------- */
+.reader-tool.active {
+  color: var(--accent);
+}
+
+/* 听书条占住底部，翻章栏让到它上面 */
+.reader-container.listening .reader-nav {
+  bottom: 76px;
+}
+
+.reader-container.listening .reader-text {
+  padding-bottom: 180px;
+}
+
+.audio-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: min(560px, calc(100vw - 32px));
+  padding: 6px 8px;
+  transform: translateX(-50%);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.audio-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.audio-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.audio-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.audio-play {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 16px;
+}
+
+.audio-play:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  opacity: 0.9;
+}
+
+.audio-info {
+  flex: 1;
+  min-width: 0;
+  margin: 0 8px;
+  line-height: 1.35;
+}
+
+.audio-title {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.audio-sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-sub.error {
+  color: var(--accent);
+}
+
+.audio-select {
+  flex: none;
+  font-size: 12px;
+}
+
+.audio-tone-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.audio-tone-desc {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+/* 正在朗读的段落 */
+.reader-listening {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
 /* 全书进度条：拖动时浮出章节名，松手跳过去 */
 .reader-slider.ant-slider {
   width: 220px;

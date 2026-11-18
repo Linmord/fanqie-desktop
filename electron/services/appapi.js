@@ -46,7 +46,7 @@ const COMMENT_BASE = `${COMMENT_HOST}/novel/commentapi`;
 const APP_UA = 'com.dragon.read';
 const REGISTER_URL = 'https://i.snssdk.com/service/2/device_register/?tt_data=a';
 
-const ANDROID_VERSIONS = [['9', 29], ['10', 30], ['11', 31], ['12', 32], ['13', 33], ['14', 34]];
+const ANDROID_VERSIONS =[['9', 29], ['10', 30], ['11', 31], ['12', 32], ['13', 33], ['14', 34]];
 const DEVICE_MODELS = [
   'RMX1931', 'MI8', 'Honor10', 'P30', 'V1921A', 'Redmi Note 7', 'Redmi K20 Pro',
   'MI 9', 'Mi 10 Pro', 'SM-G9750', 'Pixel 6', 'HD1910', 'M2011K2C', 'LIO-AN00',
@@ -849,6 +849,80 @@ class FanqieAppApi {
       book_id: String(bookId), comment_id: String(id),
       digg_type: like ? 1 : 3, target_type: isReply ? 2 : 1, service_id: serviceId || 1,
     }, { write: true, host: COMMENT_HOST });
+  }
+
+  // ----- 听书：番茄服务端合成的 AI 朗读，只需匿名设备签名
+  async _audioCall(path, extra) {
+    await this.ensureReady();
+    const url = `${APP_BASE}${path}?${buildQuery(this.device, extra)}`;
+    const res = await httpsRequest(url, { headers: signRequest(url), timeout: 15000 });
+    // 有声书和章节 id 是超过 2^53 的裸数字，先转成字符串再解析，免得丢精度。
+    // 只认未转义的 "key": 形式，嵌在字符串里的 JSON（\"key\":）不动
+    const text = res.body.toString('utf-8').replace(/"(\w+)":(\d{16,})(?=[,}\]])/g, '"$1":"$2"');
+    const payload = text ? JSON.parse(text) : null;
+    if (!payload) throw new Error('听书接口返回空响应');
+    if (Number(payload.code) === 101019) throw new Error('这个音色暂不支持本章，换一个试试');
+    if (Number(payload.code) !== 0) throw new Error(payload.message || `听书接口错误 ${payload.code}`);
+    return payload;
+  }
+
+  // 本书可用的音色：真人主播在前，AI 朗读按官方推荐顺序；key 里带上类型，播放时据此走不同接口
+  async audioTones(bookId) {
+    const { data } = await this._audioCall('/bookapi/audio/toneinfo/', { book_id: String(bookId) });
+    const narrators = ((data || {}).audio_tones || []).filter(t => t && t.abook_id).map(t => ({
+      key: `abook:${t.abook_id}`,
+      kind: 'narrator',
+      title: String(t.title || '真人主播').replace(/^主播[：:]/, ''),
+      description: '',
+    }));
+    const tts = ((data || {}).tts_tones || []).filter(t => t && t.id).map(t => ({
+      key: String(t.id),
+      kind: 'tts',
+      // 多角色音色官方只叫"升级版"之类，单独看不出是什么，补上说明
+      title: t.is_multi_tone ? `${t.title}（多角色）` : String(t.title || `音色 ${t.id}`),
+      description: String(t.description || ''),
+    }));
+    return [...narrators, ...tts];
+  }
+
+  // 一章的音频地址（mp3，24 小时有效）
+  async audioPlayInfo(itemId, toneId) {
+    const { data } = await this._audioCall('/reader/audio/playinfo/', {
+      item_ids: String(itemId), tone_id: String(toneId), pv_player: '-1',
+    });
+    const info = (data || [])[0];
+    if (!info || !info.main_url) throw new Error('这一章暂时没有音频');
+    if (info.is_encrypt) throw new Error('这一章的音频已加密，暂不支持');
+    return { url: info.main_url, backupUrl: info.backup_url || '' };
+  }
+
+  // 音频时间轴：每句对应的段落（段评同款 idx，10000 是标题）和起止毫秒
+  async audioTimepoints(bookId, itemId, toneId) {
+    const { data } = await this._audioCall('/reader/audio/timepoint/', {
+      book_id: String(bookId), item_id: String(itemId), tone_id: String(toneId), req_type: '1',
+    });
+    return ((data || {}).time_points || []).map(t => ({
+      start: Number(t.start_time) || 0, end: Number(t.end_time) || 0, para: Number(t.start_para),
+    }));
+  }
+
+  // 真人主播：小说章节对应到有声书里的哪一章，以及每段从第几毫秒开始。
+  // 章节交界处偶尔有一段算到相邻音频里，取占多数的那个音频
+  async audioNarration(bookId, itemId, abookId) {
+    const { para_match_data: match } = await this._audioCall('/reader/audio/timepoint/', {
+      book_id: String(bookId), item_id: String(itemId), tone_id: '0', req_type: '3',
+    });
+    const rows = (((match || {}).text_para_match_data || {})[String(abookId)] || []);
+    const count = {};
+    for (const r of rows) count[r.item_id] = (count[r.item_id] || 0) + 1;
+    const audioId = Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+    if (!audioId) throw new Error('主播还没录到这一章，可以换 AI 音色');
+    const starts = rows.filter(r => String(r.item_id) === audioId)
+      .map(r => ({ para: Number(r.para), start: Number(r.start_time) || 0 }))
+      .sort((a, b) => a.start - b.start);
+    const points = starts.map((p, i) => ({ ...p, end: i + 1 < starts.length ? starts[i + 1].start : Number.MAX_SAFE_INTEGER }));
+    const info = await this.audioPlayInfo(audioId, 0);
+    return { ...info, points };
   }
 
   async fetchChapters(itemIds, bookId = '', { onBatch, maxRounds = 3 } = {}) {

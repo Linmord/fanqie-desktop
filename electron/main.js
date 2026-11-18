@@ -32,6 +32,16 @@ function createWindow() {
     callback({ responseHeaders: headers });
   });
 
+  // 听书音频的 CDN 见到 Referer 就返回 403，App 里本来也不带
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://*.fqnovelvod.com/*', 'https://*.zjcdn.com/*'] },
+    (details, callback) => {
+      const headers = { ...details.requestHeaders };
+      delete headers.Referer;
+      callback({ requestHeaders: headers });
+    },
+  );
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -128,6 +138,12 @@ ipcMain.handle('comment:reply', (_e, itemId, bookId, paraIndex, paraText, rootId
 ipcMain.handle('comment:digg', (_e, bookId, id, like, isReply, serviceId) =>
   appApi.commentDigg(String(bookId), String(id), like, isReply, serviceId));
 ipcMain.handle('comment:emojis', () => api.getEmojis());
+
+// --- IPC: 听书 ---
+ipcMain.handle('audio:tones', (_e, bookId) => appApi.audioTones(bookId));
+ipcMain.handle('audio:playInfo', (_e, itemId, toneId) => appApi.audioPlayInfo(itemId, toneId));
+ipcMain.handle('audio:timepoints', (_e, bookId, itemId, toneId) => appApi.audioTimepoints(bookId, itemId, toneId));
+ipcMain.handle('audio:narration', (_e, bookId, itemId, abookId) => appApi.audioNarration(bookId, itemId, abookId));
 
 // --- IPC: 分类列表 ---
 ipcMain.handle('api:categories', async () => {

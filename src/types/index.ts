@@ -98,6 +98,29 @@ export interface ChapterContent {
   paraIdx?: number[];
 }
 
+/** 听书音色：AI 朗读的 key 是音色 id，真人主播的 key 是 abook:有声书 id */
+export interface AudioTone {
+  key: string;
+  kind: 'tts' | 'narrator';
+  title: string;
+  /** 官方的一句话介绍，如"自然流畅" */
+  description: string;
+}
+
+/** 听书时间轴里的一句：para 是段评同款段落 idx，10000 表示标题；时间为毫秒 */
+export interface AudioTimepoint {
+  start: number;
+  end: number;
+  para: number;
+}
+
+/** 真人主播一章的音频，及每段在音频里的时间 */
+export interface AudioNarration {
+  url: string;
+  backupUrl: string;
+  points: AudioTimepoint[];
+}
+
 /** 段评或回复 */
 export interface ParaComment {
   id: string;
