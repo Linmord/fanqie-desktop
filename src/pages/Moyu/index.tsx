@@ -140,26 +140,11 @@ export default function Moyu() {
     return () => window.removeEventListener('keydown', handler);
   });
 
-  // 无边框窗口自己处理拖动：按住正文拖窗口，按住右下角改大小
+  // 无边框窗口：按住正文拖窗口，按住右下角改大小
   const dragWindow = (mode: 'move' | 'resize') => (e: React.PointerEvent) => {
     if (e.button !== 0) return;
-    const start = { sx: e.screenX, sy: e.screenY, x: window.screenX, y: window.screenY, w: window.innerWidth, h: window.innerHeight };
-    const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => {
-      const dx = ev.screenX - start.sx;
-      const dy = ev.screenY - start.sy;
-      api.setMoyuBounds(mode === 'move'
-        ? { x: start.x + dx, y: start.y + dy, width: start.w, height: start.h }
-        : { x: start.x, y: start.y, width: Math.max(200, start.w + dx), height: Math.max(80, start.h + dy) });
-    };
-    const up = () => {
-      target.removeEventListener('pointermove', move);
-      target.removeEventListener('pointerup', up);
-    };
-    target.addEventListener('pointermove', move);
-    target.addEventListener('pointerup', up);
     e.stopPropagation();
+    api.startMoyuDrag(mode).catch(() => {});
   };
 
   const light = prefs.color === 'light';

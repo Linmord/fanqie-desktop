@@ -51,7 +51,8 @@ interface NativeAPI {
   openMoyu(bookId: string, chapterId: string, para: number): Promise<void>;
   /** 关闭摸鱼窗口，主窗口回来并收到 onMoyuExit */
   closeMoyu(chapterId: string, para: number): Promise<void>;
-  setMoyuBounds(bounds: { x: number; y: number; width: number; height: number }): Promise<void>;
+  /** 摸鱼窗口：开始拖动（move）或从右下角缩放（resize） */
+  startMoyuDrag(mode: 'move' | 'resize'): Promise<void>;
   getMoyuPrefs(): Promise<import('./types').MoyuPrefs>;
   saveMoyuPrefs(patch: Partial<import('./types').MoyuPrefs>): Promise<import('./types').MoyuPrefs>;
   /** 返回取消监听的函数 */

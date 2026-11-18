@@ -56,7 +56,7 @@ const fallback: NativeAPI = {
   bossKeyRegistered: () => Promise.resolve(true),
   openMoyu: () => Promise.resolve(),
   closeMoyu: () => Promise.resolve(),
-  setMoyuBounds: () => Promise.resolve(),
+  startMoyuDrag: () => Promise.resolve(),
   getMoyuPrefs: () => Promise.resolve({ bounds: null, opacity: 0, fontSize: 15, color: 'dark' as const }),
   saveMoyuPrefs: (patch) => Promise.resolve({ bounds: null, opacity: 0, fontSize: 15, color: 'dark' as const, ...patch }),
   onMoyuExit: () => () => {},
@@ -121,7 +121,7 @@ export const onFullScreenChange = api.onFullScreenChange.bind(api);
 
 export const openMoyu = api.openMoyu.bind(api);
 export const closeMoyu = api.closeMoyu.bind(api);
-export const setMoyuBounds = api.setMoyuBounds.bind(api);
+export const startMoyuDrag = api.startMoyuDrag.bind(api);
 export const getMoyuPrefs = api.getMoyuPrefs.bind(api);
 export const saveMoyuPrefs = api.saveMoyuPrefs.bind(api);
 export const onMoyuExit = api.onMoyuExit.bind(api);

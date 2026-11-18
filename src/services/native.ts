@@ -1,5 +1,6 @@
 // 桌面端原生能力：通过 Tauri 命令调用 Rust 后端（src-tauri）
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
@@ -49,10 +50,32 @@ export const native: NativeAPI = {
   updateCloudProgress: (bookId, itemId, index, progress) =>
     call('account_update_cloud_progress', { bookId, itemId, index, progress }),
 
+  getBookmarks: (bookId) => call('store_get_bookmarks', { bookId }),
+  saveBookmarks: (bookId, list) => call('store_save_bookmarks', { bookId, list }),
   getSettings: () => call('store_get_settings'),
   saveSettings: (settings) => call('store_save_settings', { settings }),
   getAppearance: () => call('app_get_appearance'),
   setAppearance: (mode) => call('app_set_appearance', { mode }),
+
+  bossKeyRegistered: () => call('app_boss_key_registered'),
+  openMoyu: (bookId, chapterId, para) => call('moyu_open', { bookId, chapterId, para }),
+  closeMoyu: (chapterId, para) => call('moyu_close', { chapterId, para }),
+  getMoyuPrefs: () => call('moyu_get_prefs'),
+  saveMoyuPrefs: (patch) => call('moyu_save_prefs', { patch }),
+  onMoyuExit: (cb) => {
+    let stopped = false;
+    let unlisten: (() => void) | undefined;
+    listen<{ chapterId: string; para: number }>('moyu:exit', (e) => cb(e.payload)).then((fn) =>
+      stopped ? fn() : (unlisten = fn),
+    );
+    return () => {
+      stopped = true;
+      unlisten?.();
+    };
+  },
+  // 无边框摸鱼窗口：按住正文拖动窗口，按住右下角改大小，交给系统原生处理
+  startMoyuDrag: (mode) =>
+    mode === 'move' ? getCurrentWindow().startDragging() : getCurrentWindow().startResizeDragging('SouthEast'),
 
   isFullScreen: () => getCurrentWindow().isFullscreen(),
   toggleFullScreen: async () => {
