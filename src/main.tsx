@@ -5,6 +5,7 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import App from './App';
 import { useTheme, antdConfig } from './stores/theme';
+import { installExternalLinks } from './services/native';
 import './styles/index.css';
 
 function Root() {
@@ -23,6 +24,8 @@ function Root() {
     </ConfigProvider>
   );
 }
+
+installExternalLinks();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -370,6 +370,7 @@ export default function Reader() {
       >
         <div
           className={`reader-header${showChrome ? '' : ' hidden'}`}
+          data-tauri-drag-region
           style={isMac && !fullScreen ? { paddingLeft: 88 } : undefined}
         >
           <button className="reader-tool" onClick={() => nav(-1)}>← 返回</button>

@@ -3,7 +3,7 @@ import { theme as antdTheme, type ThemeConfig } from 'antd';
 import type { Appearance } from '@/types';
 import * as api from '@/services/api';
 
-// 桌面端由主进程的 nativeTheme 决定 prefers-color-scheme；浏览器里预览时按 appearance 自己算
+// 桌面端由 Rust 端设置的应用主题决定 prefers-color-scheme；浏览器里预览时按 appearance 自己算
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 const resolveDark = (appearance: Appearance) =>
   appearance === 'system' ? media.matches : appearance === 'dark';

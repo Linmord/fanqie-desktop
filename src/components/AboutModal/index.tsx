@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void;
 }
 
-// 外链统一 target=_blank，由主进程 setWindowOpenHandler 交给系统浏览器打开
+// 外链统一 target=_blank，由 installExternalLinks 交给系统浏览器打开
 export default function AboutModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={440} centered>

@@ -1,4 +1,5 @@
-const isElectron = !!window.electronAPI;
+import { isTauri } from '@tauri-apps/api/core';
+import { native } from './native';
 
 const noop = () => Promise.resolve({ books: [], total: 0, hasMore: false });
 const noopNull = () => Promise.resolve(null);
@@ -12,7 +13,7 @@ const noopSettings = () => Promise.resolve({
   readingMode: 'scroll' as const,
 });
 
-const fallback: ElectronAPI = {
+const fallback: NativeAPI = {
   search: noop,
   bookDetail: noopNull,
   chapters: noopArr,
@@ -32,9 +33,9 @@ const fallback: ElectronAPI = {
   ranking: noop,
   recommend: noopArr,
   getBookshelf: noopArr,
-  addToBookshelf: noopArr as ElectronAPI['addToBookshelf'],
-  removeFromBookshelf: noopArr as ElectronAPI['removeFromBookshelf'],
-  updateBookshelfItem: noopArr as ElectronAPI['updateBookshelfItem'],
+  addToBookshelf: noopArr as NativeAPI['addToBookshelf'],
+  removeFromBookshelf: noopArr as NativeAPI['removeFromBookshelf'],
+  updateBookshelfItem: noopArr as NativeAPI['updateBookshelfItem'],
   replaceBookshelf: (items) => Promise.resolve(items),
   getQrcode: () => Promise.reject(new Error('请在桌面客户端中登录')),
   checkQrcode: () => Promise.resolve({ status: 'new' as const }),
@@ -45,7 +46,7 @@ const fallback: ElectronAPI = {
   removeFromCloudShelf: () => Promise.resolve(),
   updateCloudProgress: () => Promise.resolve(),
   getSettings: noopSettings,
-  saveSettings: noopSettings as ElectronAPI['saveSettings'],
+  saveSettings: noopSettings as NativeAPI['saveSettings'],
   getAppearance: () => Promise.resolve('system' as const),
   setAppearance: (mode) => Promise.resolve(mode),
   // 浏览器里预览时退回网页全屏
@@ -59,7 +60,7 @@ const fallback: ElectronAPI = {
   },
 };
 
-const api = isElectron ? window.electronAPI : fallback;
+const api = isTauri() ? native : fallback;
 
 export const search = api.search.bind(api);
 export const bookDetail = api.bookDetail.bind(api);

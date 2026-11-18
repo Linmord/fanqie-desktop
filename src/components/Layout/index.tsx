@@ -40,8 +40,8 @@ export default function Layout() {
 
   return (
     <>
-      <aside className="sidebar">
-        <nav className="sidebar-nav">
+      <aside className="sidebar" data-tauri-drag-region>
+        <nav className="sidebar-nav" data-tauri-drag-region>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -95,7 +95,7 @@ export default function Layout() {
         </div>
       </aside>
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
-      <div className="titlebar-drag" />
+      <div className="titlebar-drag" data-tauri-drag-region />
       <main className="content">
         <Outlet />
       </main>

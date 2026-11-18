@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
-interface ElectronAPI {
+/** 桌面端原生能力，由 src-tauri 的命令实现（src/services/native.ts） */
+interface NativeAPI {
   search(query: string, page?: number): Promise<import('./types').SearchResult>;
   bookDetail(bookId: string): Promise<import('./types').Book | null>;
   chapters(bookId: string): Promise<import('./types').Chapter[]>;
@@ -44,10 +45,6 @@ interface ElectronAPI {
   toggleFullScreen(): Promise<void>;
   /** 返回取消监听的函数 */
   onFullScreenChange(cb: (fullScreen: boolean) => void): () => void;
-}
-
-interface Window {
-  electronAPI: ElectronAPI;
 }
 
 /** package.json 里的版本号，由 vite.config.ts 注入 */
