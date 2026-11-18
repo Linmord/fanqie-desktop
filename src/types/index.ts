@@ -84,6 +84,21 @@ export interface ChapterContent {
   paraIdx?: number[];
 }
 
+/** 听书音色 */
+export interface AudioTone {
+  id: number;
+  title: string;
+  /** 官方的一句话介绍，如"自然流畅" */
+  description: string;
+}
+
+/** 听书时间轴里的一句：para 是段评同款段落 idx，10000 表示标题；时间为毫秒 */
+export interface AudioTimepoint {
+  start: number;
+  end: number;
+  para: number;
+}
+
 /** 段评或回复 */
 export interface ParaComment {
   id: string;

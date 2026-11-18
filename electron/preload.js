@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   commentDigg: (bookId, id, like, isReply, serviceId) =>
     ipcRenderer.invoke('comment:digg', bookId, id, like, isReply, serviceId),
   commentEmojis: () => ipcRenderer.invoke('comment:emojis'),
+  audioTones: (bookId) => ipcRenderer.invoke('audio:tones', bookId),
+  audioPlayInfo: (itemId, toneId) => ipcRenderer.invoke('audio:playInfo', itemId, toneId),
+  audioTimepoints: (bookId, itemId, toneId) => ipcRenderer.invoke('audio:timepoints', bookId, itemId, toneId),
   categories: () => ipcRenderer.invoke('api:categories'),
   ranking: (rankId, page) => ipcRenderer.invoke('api:ranking', rankId, page),
   recommend: () => ipcRenderer.invoke('api:recommend'),

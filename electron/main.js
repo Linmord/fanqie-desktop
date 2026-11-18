@@ -121,6 +121,11 @@ ipcMain.handle('comment:digg', (_e, bookId, id, like, isReply, serviceId) =>
   appApi.commentDigg(String(bookId), String(id), like, isReply, serviceId));
 ipcMain.handle('comment:emojis', () => api.getEmojis());
 
+// --- IPC: 听书 ---
+ipcMain.handle('audio:tones', (_e, bookId) => appApi.audioTones(bookId));
+ipcMain.handle('audio:playInfo', (_e, itemId, toneId) => appApi.audioPlayInfo(itemId, toneId));
+ipcMain.handle('audio:timepoints', (_e, bookId, itemId, toneId) => appApi.audioTimepoints(bookId, itemId, toneId));
+
 // --- IPC: 分类列表 ---
 ipcMain.handle('api:categories', async () => {
   return api.getCategories();

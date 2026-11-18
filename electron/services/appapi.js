@@ -46,7 +46,7 @@ const COMMENT_BASE = `${COMMENT_HOST}/novel/commentapi`;
 const APP_UA = 'com.dragon.read';
 const REGISTER_URL = 'https://i.snssdk.com/service/2/device_register/?tt_data=a';
 
-const ANDROID_VERSIONS = [['9', 29], ['10', 30], ['11', 31], ['12', 32], ['13', 33], ['14', 34]];
+const ANDROID_VERSIONS =[['9', 29], ['10', 30], ['11', 31], ['12', 32], ['13', 33], ['14', 34]];
 const DEVICE_MODELS = [
   'RMX1931', 'MI8', 'Honor10', 'P30', 'V1921A', 'Redmi Note 7', 'Redmi K20 Pro',
   'MI 9', 'Mi 10 Pro', 'SM-G9750', 'Pixel 6', 'HD1910', 'M2011K2C', 'LIO-AN00',
@@ -849,6 +849,50 @@ class FanqieAppApi {
       book_id: String(bookId), comment_id: String(id),
       digg_type: like ? 1 : 3, target_type: isReply ? 2 : 1, service_id: serviceId || 1,
     }, { write: true, host: COMMENT_HOST });
+  }
+
+  // ----- 听书：番茄服务端合成的 AI 朗读，只需匿名设备签名
+  async _audioCall(path, extra) {
+    await this.ensureReady();
+    const url = `${APP_BASE}${path}?${buildQuery(this.device, extra)}`;
+    const res = await httpsRequest(url, { headers: signRequest(url), timeout: 15000 });
+    const payload = res.body.length ? JSON.parse(res.body.toString('utf-8')) : null;
+    if (!payload) throw new Error('听书接口返回空响应');
+    if (Number(payload.code) === 101019) throw new Error('这个音色暂不支持本章，换一个试试');
+    if (Number(payload.code) !== 0) throw new Error(payload.message || `听书接口错误 ${payload.code}`);
+    return payload;
+  }
+
+  // 本书可用的 AI 朗读音色，按官方推荐顺序；书没有 AI 朗读时为空
+  async audioTones(bookId) {
+    const { data } = await this._audioCall('/bookapi/audio/toneinfo/', { book_id: String(bookId) });
+    return ((data || {}).tts_tones || []).filter(t => t && t.id).map(t => ({
+      id: Number(t.id),
+      // 多角色音色官方只叫"升级版"之类，单独看不出是什么，补上说明
+      title: t.is_multi_tone ? `${t.title}（多角色）` : String(t.title || `音色 ${t.id}`),
+      description: String(t.description || ''),
+    }));
+  }
+
+  // 一章的音频地址（mp3，24 小时有效）
+  async audioPlayInfo(itemId, toneId) {
+    const { data } = await this._audioCall('/reader/audio/playinfo/', {
+      item_ids: String(itemId), tone_id: String(toneId), pv_player: '-1',
+    });
+    const info = (data || [])[0];
+    if (!info || !info.main_url) throw new Error('这一章暂时没有音频');
+    if (info.is_encrypt) throw new Error('这一章的音频已加密，暂不支持');
+    return { url: info.main_url, backupUrl: info.backup_url || '' };
+  }
+
+  // 音频时间轴：每句对应的段落（段评同款 idx，10000 是标题）和起止毫秒
+  async audioTimepoints(bookId, itemId, toneId) {
+    const { data } = await this._audioCall('/reader/audio/timepoint/', {
+      book_id: String(bookId), item_id: String(itemId), tone_id: String(toneId), req_type: '1',
+    });
+    return ((data || {}).time_points || []).map(t => ({
+      start: Number(t.start_time) || 0, end: Number(t.end_time) || 0, para: Number(t.start_para),
+    }));
   }
 
   async fetchChapters(itemIds, bookId = '', { onBatch, maxRounds = 3 } = {}) {
