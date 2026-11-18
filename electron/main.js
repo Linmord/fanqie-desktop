@@ -135,6 +135,7 @@ ipcMain.handle('comment:emojis', () => api.getEmojis());
 ipcMain.handle('audio:tones', (_e, bookId) => appApi.audioTones(bookId));
 ipcMain.handle('audio:playInfo', (_e, itemId, toneId) => appApi.audioPlayInfo(itemId, toneId));
 ipcMain.handle('audio:timepoints', (_e, bookId, itemId, toneId) => appApi.audioTimepoints(bookId, itemId, toneId));
+ipcMain.handle('audio:narration', (_e, bookId, itemId, abookId) => appApi.audioNarration(bookId, itemId, abookId));
 
 // --- IPC: 分类列表 ---
 ipcMain.handle('api:categories', async () => {

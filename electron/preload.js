@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   audioTones: (bookId) => ipcRenderer.invoke('audio:tones', bookId),
   audioPlayInfo: (itemId, toneId) => ipcRenderer.invoke('audio:playInfo', itemId, toneId),
   audioTimepoints: (bookId, itemId, toneId) => ipcRenderer.invoke('audio:timepoints', bookId, itemId, toneId),
+  audioNarration: (bookId, itemId, abookId) => ipcRenderer.invoke('audio:narration', bookId, itemId, abookId),
   categories: () => ipcRenderer.invoke('api:categories'),
   ranking: (rankId, page) => ipcRenderer.invoke('api:ranking', rankId, page),
   recommend: () => ipcRenderer.invoke('api:recommend'),

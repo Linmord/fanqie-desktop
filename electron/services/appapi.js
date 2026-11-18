@@ -856,22 +856,33 @@ class FanqieAppApi {
     await this.ensureReady();
     const url = `${APP_BASE}${path}?${buildQuery(this.device, extra)}`;
     const res = await httpsRequest(url, { headers: signRequest(url), timeout: 15000 });
-    const payload = res.body.length ? JSON.parse(res.body.toString('utf-8')) : null;
+    // 有声书和章节 id 是超过 2^53 的裸数字，先转成字符串再解析，免得丢精度。
+    // 只认未转义的 "key": 形式，嵌在字符串里的 JSON（\"key\":）不动
+    const text = res.body.toString('utf-8').replace(/"(\w+)":(\d{16,})(?=[,}\]])/g, '"$1":"$2"');
+    const payload = text ? JSON.parse(text) : null;
     if (!payload) throw new Error('听书接口返回空响应');
     if (Number(payload.code) === 101019) throw new Error('这个音色暂不支持本章，换一个试试');
     if (Number(payload.code) !== 0) throw new Error(payload.message || `听书接口错误 ${payload.code}`);
     return payload;
   }
 
-  // 本书可用的 AI 朗读音色，按官方推荐顺序；书没有 AI 朗读时为空
+  // 本书可用的音色：真人主播在前，AI 朗读按官方推荐顺序；key 里带上类型，播放时据此走不同接口
   async audioTones(bookId) {
     const { data } = await this._audioCall('/bookapi/audio/toneinfo/', { book_id: String(bookId) });
-    return ((data || {}).tts_tones || []).filter(t => t && t.id).map(t => ({
-      id: Number(t.id),
+    const narrators = ((data || {}).audio_tones || []).filter(t => t && t.abook_id).map(t => ({
+      key: `abook:${t.abook_id}`,
+      kind: 'narrator',
+      title: String(t.title || '真人主播').replace(/^主播[：:]/, ''),
+      description: '',
+    }));
+    const tts = ((data || {}).tts_tones || []).filter(t => t && t.id).map(t => ({
+      key: String(t.id),
+      kind: 'tts',
       // 多角色音色官方只叫"升级版"之类，单独看不出是什么，补上说明
       title: t.is_multi_tone ? `${t.title}（多角色）` : String(t.title || `音色 ${t.id}`),
       description: String(t.description || ''),
     }));
+    return [...narrators, ...tts];
   }
 
   // 一章的音频地址（mp3，24 小时有效）
@@ -893,6 +904,25 @@ class FanqieAppApi {
     return ((data || {}).time_points || []).map(t => ({
       start: Number(t.start_time) || 0, end: Number(t.end_time) || 0, para: Number(t.start_para),
     }));
+  }
+
+  // 真人主播：小说章节对应到有声书里的哪一章，以及每段从第几毫秒开始。
+  // 章节交界处偶尔有一段算到相邻音频里，取占多数的那个音频
+  async audioNarration(bookId, itemId, abookId) {
+    const { para_match_data: match } = await this._audioCall('/reader/audio/timepoint/', {
+      book_id: String(bookId), item_id: String(itemId), tone_id: '0', req_type: '3',
+    });
+    const rows = (((match || {}).text_para_match_data || {})[String(abookId)] || []);
+    const count = {};
+    for (const r of rows) count[r.item_id] = (count[r.item_id] || 0) + 1;
+    const audioId = Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+    if (!audioId) throw new Error('主播还没录到这一章，可以换 AI 音色');
+    const starts = rows.filter(r => String(r.item_id) === audioId)
+      .map(r => ({ para: Number(r.para), start: Number(r.start_time) || 0 }))
+      .sort((a, b) => a.start - b.start);
+    const points = starts.map((p, i) => ({ ...p, end: i + 1 < starts.length ? starts[i + 1].start : Number.MAX_SAFE_INTEGER }));
+    const info = await this.audioPlayInfo(audioId, 0);
+    return { ...info, points };
   }
 
   async fetchChapters(itemIds, bookId = '', { onBatch, maxRounds = 3 } = {}) {

@@ -12,10 +12,11 @@ const RATES = [0.75, 1, 1.25, 1.5, 2];
 const TONE_KEY = 'fq-audio-tone';
 const RATE_KEY = 'fq-audio-rate';
 
-const load = (key: string) => {
-  try { return Number(localStorage.getItem(key)) || 0; } catch { return 0; }
+const loadStr = (key: string) => {
+  try { return localStorage.getItem(key) || ''; } catch { return ''; }
 };
-const keep = (key: string, v: number) => {
+const load = (key: string) => Number(loadStr(key)) || 0;
+const keep = (key: string, v: number | string) => {
   try { localStorage.setItem(key, String(v)); } catch { /* 存不了就算了 */ }
 };
 const clock = (s: number) => {
@@ -37,7 +38,7 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
 }) {
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const [tones, setTones] = useState<AudioTone[] | null>(null);
-  const [toneId, setToneId] = useState(0);
+  const [toneKey, setToneKey] = useState('');
   const [rate, setRate] = useState(() => (RATES.includes(load(RATE_KEY)) ? load(RATE_KEY) : 1));
   const [chapterId, setChapterId] = useState(start.chapterId);
   const [loading, setLoading] = useState(true);
@@ -94,7 +95,7 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
   };
 
   /** 播放某章，从指定段落开始 */
-  const playChapter = async (chId: string, para: number, tone: number) => {
+  const playChapter = async (chId: string, para: number, tone: string) => {
     const token = ++tokenRef.current;
     const audio = audioRef.current;
     audio.pause();
@@ -104,14 +105,17 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
     setError('');
     setTime({ cur: 0, total: NaN });
     try {
-      const [info, points] = await Promise.all([
-        api.audioPlayInfo(chId, tone),
-        api.audioTimepoints(bookId, chId, tone).catch(() => [] as AudioTimepoint[]),
-      ]);
+      // 真人主播的音频和段落时间一次拿到；AI 朗读分两个接口，时间轴拿不到也能播
+      const { url, backupUrl, points } = tone.startsWith('abook:')
+        ? await api.audioNarration(bookId, chId, tone.slice(6))
+        : await Promise.all([
+          api.audioPlayInfo(chId, Number(tone)),
+          api.audioTimepoints(bookId, chId, Number(tone)).catch(() => [] as AudioTimepoint[]),
+        ]).then(([info, pts]) => ({ ...info, points: pts }));
       if (token !== tokenRef.current) return;
       pointsRef.current = points;
       const from = para > 0 ? points.find((p) => p.para !== TITLE_PARA && p.para >= para) : undefined;
-      let backup = info.backupUrl;
+      let backup = backupUrl;
       audio.onerror = () => {
         if (token !== tokenRef.current) return;
         if (backup) {
@@ -127,14 +131,15 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
         if (from && token === tokenRef.current) audio.currentTime = from.start / 1000;
         audio.onloadedmetadata = null;
       };
-      audio.src = info.url;
+      audio.src = url;
       audio.playbackRate = rate;
       await audio.play();
     } catch (e) {
       if (token !== tokenRef.current) return;
       setLoading(false);
-      // 加载中点了暂停，play() 会被打断，不算出错
-      if (e instanceof DOMException && e.name === 'AbortError') return;
+      // 加载中点了暂停，play() 会被打断，不算出错；
+      // 音源解不了（有的主地址是 MP4 封装的 MP3）交给 onerror 换备用地址，备用也失败才报错
+      if (e instanceof DOMException && (e.name === 'AbortError' || e.name === 'NotSupportedError')) return;
       setError(e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : '播放失败');
     }
   };
@@ -147,13 +152,13 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
     // 读者跟着听时，章节流里没有下一章就让阅读页跳过去
     if (!seg && following()) onFollow(next.id);
     clearHighlight();
-    playChapter(next.id, 0, toneId);
+    playChapter(next.id, 0, toneKey);
     return true;
   };
 
   const toggle = () => {
     const audio = audioRef.current;
-    if (error) playChapter(posRef.current.chapterId, posRef.current.para, toneId);
+    if (error) playChapter(posRef.current.chapterId, posRef.current.para, toneKey);
     else if (audio.paused) audio.play().catch(() => {});
     else audio.pause();
   };
@@ -172,10 +177,11 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
         setError('这本书暂不支持听书');
         return;
       }
-      const saved = load(TONE_KEY);
-      const tone = list.some((t) => t.id === saved) ? saved : list[0].id;
-      setToneId(tone);
-      playChapter(start.chapterId, start.para, tone);
+      // 默认用 AI 朗读：主播通常比连载慢，最新几章往往还没录
+      const saved = loadStr(TONE_KEY);
+      const tone = list.find((t) => t.key === saved) || list.find((t) => t.kind === 'tts') || list[0];
+      setToneKey(tone.key);
+      playChapter(start.chapterId, start.para, tone.key);
     }).catch((e) => {
       if (!alive) return;
       setTones([]);
@@ -233,11 +239,22 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
     }
   }, [chapter, bookTitle]);
 
-  const changeTone = (id: number) => {
-    setToneId(id);
-    keep(TONE_KEY, id);
-    playChapter(posRef.current.chapterId, posRef.current.para, id);
+  const changeTone = (key: string) => {
+    setToneKey(key);
+    keep(TONE_KEY, key);
+    playChapter(posRef.current.chapterId, posRef.current.para, key);
   };
+
+  // 下拉框里分成真人主播和 AI 朗读两组
+  const toneGroups = ([['narrator', '真人主播'], ['tts', 'AI 朗读']] as const)
+    .map(([kind, label]) => ({
+      label,
+      title: label,
+      options: (tones || []).filter((t) => t.kind === kind)
+        .map((t) => ({ value: t.key, label: t.title })),
+    }))
+    .filter((g) => g.options.length);
+  const toneDesc = Object.fromEntries((tones || []).map((t) => [t.key, t.description]));
 
   const changeRate = (v: number) => {
     setRate(v);
@@ -270,13 +287,13 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
           variant="borderless"
           className="audio-select"
           popupMatchSelectWidth={false}
-          value={toneId}
+          value={toneKey}
           onChange={changeTone}
-          options={tones.map((t) => ({ value: t.id, label: t.title, desc: t.description }))}
+          options={toneGroups}
           optionRender={(o) => (
             <div className="audio-tone-option">
               <span>{o.label}</span>
-              {o.data.desc && <span className="audio-tone-desc">{o.data.desc}</span>}
+              {toneDesc[o.value as string] && <span className="audio-tone-desc">{toneDesc[o.value as string]}</span>}
             </div>
           )}
         />

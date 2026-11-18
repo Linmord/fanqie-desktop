@@ -27,6 +27,7 @@ const fallback: ElectronAPI = {
   audioTones: noopArr,
   audioPlayInfo: () => Promise.reject(new Error('请在桌面客户端中听书')),
   audioTimepoints: noopArr,
+  audioNarration: () => Promise.reject(new Error('请在桌面客户端中听书')),
   categories: () => Promise.resolve([]),
   ranking: noop,
   recommend: noopArr,
@@ -73,6 +74,7 @@ export const commentDigg = api.commentDigg.bind(api);
 export const audioTones = api.audioTones.bind(api);
 export const audioPlayInfo = api.audioPlayInfo.bind(api);
 export const audioTimepoints = api.audioTimepoints.bind(api);
+export const audioNarration = api.audioNarration.bind(api);
 export const commentEmojis = api.commentEmojis.bind(api);
 export const categories = api.categories.bind(api);
 export const ranking = api.ranking.bind(api);

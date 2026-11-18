@@ -15,6 +15,7 @@ interface ElectronAPI {
   audioTones(bookId: string): Promise<import('./types').AudioTone[]>;
   audioPlayInfo(itemId: string, toneId: number): Promise<{ url: string; backupUrl: string }>;
   audioTimepoints(bookId: string, itemId: string, toneId: number): Promise<import('./types').AudioTimepoint[]>;
+  audioNarration(bookId: string, itemId: string, abookId: string): Promise<import('./types').AudioNarration>;
   categories(): Promise<{ id: string; name: string; children: { id: string; name: string }[] }[]>;
   ranking(rankId?: string, page?: number): Promise<import('./types').SearchResult>;
   recommend(): Promise<{ title: string; books: import('./types').Book[] }[]>;
