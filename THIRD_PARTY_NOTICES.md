@@ -1,6 +1,6 @@
 # 第三方声明
 
-electron/services/appapi.js is ported from fanqie-novel-downloader
+src-tauri/src/appapi.rs and src-tauri/src/crypto.rs are ported from fanqie-novel-downloader
 (https://github.com/Jees996/fanqie-novel-downloader), licensed under MIT:
 
 Copyright (c) 2026 xian lee
