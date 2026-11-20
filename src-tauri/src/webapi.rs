@@ -362,19 +362,21 @@ pub async fn get_ranking(rank_id: &str, page: i64) -> Value {
 const RECOMMEND_SECTIONS: [(&str, &str); 4] =
     [("weekList", "本周推荐"), ("editorList", "编辑推荐"), ("boyList", "男频精选"), ("girlList", "女频精选")];
 
-// 首页推荐的内存缓存：启动时预取，前端进首页时直接命中；10 分钟后重新抓取
+// 首页推荐的内存缓存：启动时预取，前端进首页时直接命中；10 分钟后重新抓取。
+// 用异步锁把抓取期间的并发请求排在一起，前端来得比预取快时等同一次结果，不重复抓
 const RECOMMEND_TTL: Duration = Duration::from_secs(600);
-static RECOMMEND_CACHE: StdMutex<Option<(Instant, Value)>> = StdMutex::new(None);
+static RECOMMEND_CACHE: tokio::sync::Mutex<Option<(Instant, Value)>> = tokio::sync::Mutex::const_new(None);
 
 pub async fn get_recommend() -> Value {
-    if let Some((at, v)) = RECOMMEND_CACHE.lock().unwrap().as_ref() {
+    let mut cache = RECOMMEND_CACHE.lock().await;
+    if let Some((at, v)) = cache.as_ref() {
         if at.elapsed() < RECOMMEND_TTL {
             return v.clone();
         }
     }
     let fresh = fetch_recommend().await;
     if fresh.as_array().is_some_and(|a| !a.is_empty()) {
-        *RECOMMEND_CACHE.lock().unwrap() = Some((Instant::now(), fresh.clone()));
+        *cache = Some((Instant::now(), fresh.clone()));
     }
     fresh
 }
