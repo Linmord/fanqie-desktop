@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useReader } from '@/stores/reader';
+import { useReader, prefetchChapter } from '@/stores/reader';
 import { useBookshelf } from '@/stores/bookshelf';
 import { useAccount } from '@/stores/account';
 import { ConfigProvider, Popover, Slider } from 'antd';
@@ -110,6 +110,8 @@ export default function Reader() {
 
   useEffect(() => {
     if (!bookId) return;
+    // 目录要等整本书的网页，正文不依赖它：并行先取当前章
+    prefetchChapter(chapterId ?? '');
     loadChapters(bookId).then(() => {
       const ch = useReader.getState().chapters;
       const target = ch.find((c) => c.id === chapterId) || ch[0];

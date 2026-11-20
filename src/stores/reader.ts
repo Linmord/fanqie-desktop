@@ -46,6 +46,11 @@ function fetchChapter(id: string): Promise<ChapterData> {
   return p;
 }
 
+/** 提前取正文进缓存：目录（整本书网页，很大）还没回来时，已知章节 id 的正文可以先行请求 */
+export function prefetchChapter(id: string): void {
+  if (id) fetchChapter(id).catch(() => {});
+}
+
 const loadingSeg = (chapter: Chapter): Segment => ({
   chapter, status: 'loading', content: '', fontCss: '', paraIdx: [], commentStats: {},
 });
