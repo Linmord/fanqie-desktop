@@ -38,6 +38,7 @@ async fn web_request(path: &str) -> R<(String, reqwest::header::HeaderMap)> {
         .header("Accept-Language", "zh-CN,zh;q=0.9")
         .header("Cookie", cookie)
         .timeout(15)
+        .compress()
         .send()
         .await?;
     Ok((res.text(), res.headers))

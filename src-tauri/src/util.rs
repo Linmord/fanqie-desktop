@@ -96,21 +96,25 @@ impl Resp {
     }
 }
 
-fn build_client(follow: bool) -> reqwest::Client {
-    reqwest::Client::builder()
+fn build_client(follow: bool, compress: bool) -> reqwest::Client {
+    let mut b = reqwest::Client::builder()
         .redirect(if follow { reqwest::redirect::Policy::default() } else { reqwest::redirect::Policy::none() })
-        .connect_timeout(Duration::from_secs(15))
-        .build()
-        .expect("HTTP 客户端初始化失败")
+        .connect_timeout(Duration::from_secs(15));
+    // 签名的 App 接口对请求头很敏感（带 Accept-Encoding 后正文解不开），只给官网网页开压缩
+    if !compress {
+        b = b.no_gzip().no_brotli();
+    }
+    b.build().expect("HTTP 客户端初始化失败")
 }
 
-fn client(follow: bool) -> &'static reqwest::Client {
+fn client(follow: bool, compress: bool) -> &'static reqwest::Client {
     static FOLLOW: OnceLock<reqwest::Client> = OnceLock::new();
     static MANUAL: OnceLock<reqwest::Client> = OnceLock::new();
-    if follow {
-        FOLLOW.get_or_init(|| build_client(true))
-    } else {
-        MANUAL.get_or_init(|| build_client(false))
+    static COMPRESSED: OnceLock<reqwest::Client> = OnceLock::new();
+    match (follow, compress) {
+        (true, true) => COMPRESSED.get_or_init(|| build_client(true, true)),
+        (true, false) => FOLLOW.get_or_init(|| build_client(true, false)),
+        (false, _) => MANUAL.get_or_init(|| build_client(false, false)),
     }
 }
 
@@ -121,11 +125,12 @@ pub struct Req<'a> {
     pub body: Option<Vec<u8>>,
     pub timeout: Duration,
     pub follow: bool,
+    pub compress: bool,
 }
 
 impl<'a> Req<'a> {
     pub fn get(url: &'a str) -> Self {
-        Req { method: "GET", url, headers: vec![], body: None, timeout: Duration::from_secs(15), follow: true }
+        Req { method: "GET", url, headers: vec![], body: None, timeout: Duration::from_secs(15), follow: true, compress: false }
     }
 
     pub fn header(mut self, k: &str, v: impl Into<String>) -> Self {
@@ -149,6 +154,12 @@ impl<'a> Req<'a> {
         self
     }
 
+    /// 请求 gzip/brotli 压缩的响应，自动解压；仅用于官网网页这类普通接口
+    pub fn compress(mut self) -> Self {
+        self.compress = true;
+        self
+    }
+
     pub fn manual_redirect(mut self) -> Self {
         self.follow = false;
         self
@@ -156,7 +167,7 @@ impl<'a> Req<'a> {
 
     pub async fn send(self) -> R<Resp> {
         let method = reqwest::Method::from_bytes(self.method.as_bytes()).map_err(|e| e.to_string())?;
-        let mut rb = client(self.follow).request(method, self.url).timeout(self.timeout);
+        let mut rb = client(self.follow, self.compress).request(method, self.url).timeout(self.timeout);
         for (k, v) in &self.headers {
             rb = rb.header(k.as_str(), v.as_str());
         }
