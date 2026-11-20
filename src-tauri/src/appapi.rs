@@ -563,10 +563,18 @@ impl AppApi {
             if item["compress_status"].as_i64() == Some(1) {
                 use std::io::Read;
                 let mut out = Vec::new();
-                flate2::read::GzDecoder::new(&plain[..]).read_to_end(&mut out).map_err(|e| format!("gunzip 失败：{e}"))?;
+                // 密钥过期时服务端照常返回，只是 AES 解出来是乱码：按密钥失效处理，让上层重新注册
+                if flate2::read::GzDecoder::new(&plain[..]).read_to_end(&mut out).is_err() {
+                    invalid += 1;
+                    continue;
+                }
                 plain = out;
             }
-            result.insert(item_id.clone(), String::from_utf8_lossy(&plain).into_owned());
+            let Ok(text) = String::from_utf8(plain) else {
+                invalid += 1;
+                continue;
+            };
+            result.insert(item_id.clone(), text);
         }
         if result.is_empty() && invalid > 0 {
             return Err("正文密钥失效，需要重新注册".into());
