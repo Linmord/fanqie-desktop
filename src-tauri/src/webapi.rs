@@ -362,7 +362,24 @@ pub async fn get_ranking(rank_id: &str, page: i64) -> Value {
 const RECOMMEND_SECTIONS: [(&str, &str); 4] =
     [("weekList", "本周推荐"), ("editorList", "编辑推荐"), ("boyList", "男频精选"), ("girlList", "女频精选")];
 
+// 首页推荐的内存缓存：启动时预取，前端进首页时直接命中；10 分钟后重新抓取
+const RECOMMEND_TTL: Duration = Duration::from_secs(600);
+static RECOMMEND_CACHE: StdMutex<Option<(Instant, Value)>> = StdMutex::new(None);
+
 pub async fn get_recommend() -> Value {
+    if let Some((at, v)) = RECOMMEND_CACHE.lock().unwrap().as_ref() {
+        if at.elapsed() < RECOMMEND_TTL {
+            return v.clone();
+        }
+    }
+    let fresh = fetch_recommend().await;
+    if fresh.as_array().is_some_and(|a| !a.is_empty()) {
+        *RECOMMEND_CACHE.lock().unwrap() = Some((Instant::now(), fresh.clone()));
+    }
+    fresh
+}
+
+async fn fetch_recommend() -> Value {
     let run = async {
         let (html, _) = web_request("/").await?;
         let state = extract_state(&html).unwrap_or(Value::Null);

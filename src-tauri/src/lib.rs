@@ -456,6 +456,11 @@ pub fn run() {
                 });
             }
 
+            // 网络预热放在后台：首页推荐先抓好，设备注册也提前做完
+            let api = app.state::<Arc<AppApi>>().inner().clone();
+            tauri::async_runtime::spawn(async { webapi::get_recommend().await });
+            tauri::async_runtime::spawn(async move { api.warm().await });
+
             bosskey::register(&handle);
             std::thread::spawn(chapters::prune);
             updater::check(handle);

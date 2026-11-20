@@ -467,6 +467,13 @@ impl AppApi {
         Ok(Ready { device: st.device.clone().unwrap(), key: st.key.clone().unwrap() })
     }
 
+    /// 启动时预热：提前注册设备和正文密钥，避免用户第一次读书时才等这两次请求
+    pub async fn warm(&self) {
+        if let Err(e) = self.ready().await {
+            eprintln!("预热设备注册失败，留待首次使用时重试: {e}");
+        }
+    }
+
     async fn recover_device(&self) -> R<()> {
         let mut st = self.state.lock().await;
         if st.devices_made >= MAX_DEVICES {
