@@ -144,18 +144,35 @@ pub async fn get_chapter(api: Arc<AppApi>, item_id: &str) -> R<ChapterData> {
         Ok((my_rx.unwrap(), batch, book_id, senders))
         }
     };
-    let (rx, batch, book_id, senders) = match started {
+    let (rx, _batch, book_id, senders) = match started {
         Ok(s) => s,
         Err(rx) => return wait(rx).await,
     };
 
     tauri::async_runtime::spawn(async move {
-        // 预取的章只试一轮，拿不到（如未购买）不拖慢当前章
-        let first = api.fetch_chapters(&batch, &book_id, 1).await;
+        // 当前章单独先取、取到就返回：一次连后面几章一起请求，服务端耗时随章数明显增长
+        // （实测同一本书 1 章 1~7s，5 章 6~24s），用户会白等预取的那几章
+        let mut senders = senders;
+        let pos = senders.iter().position(|(k, _)| *k == id).expect("当前章必在批次里");
+        let (_, current_tx) = senders.remove(pos);
+        let current: R<ChapterData> = match api.fetch_chapters(&[id.clone()], &book_id, 3).await {
+            Ok(mut got) => match got.remove(&id).and_then(|x| to_data(&x)) {
+                Some(data) => {
+                    write_cached(&id, &data);
+                    Ok(data)
+                }
+                None => Err("该章节未能获取正文".to_string()),
+            },
+            Err(e) => Err(e),
+        };
+        with(|c| c.inflight.remove(&id));
+        let _ = current_tx.send(Some(current.clone()));
+
+        // 后面几章在后台取，只试一轮，拿不到（如未购买）不影响当前章
         let mut out: HashMap<String, ChapterData> = HashMap::new();
-        let mut failure: Option<String> = None;
-        match first {
-            Ok(got) => {
+        if current.is_ok() && !senders.is_empty() {
+            let rest: Vec<String> = senders.iter().map(|(k, _)| k.clone()).collect();
+            if let Ok(got) = api.fetch_chapters(&rest, &book_id, 1).await {
                 for (k, xhtml) in got {
                     if let Some(data) = to_data(&xhtml) {
                         write_cached(&k, &data);
@@ -163,27 +180,12 @@ pub async fn get_chapter(api: Arc<AppApi>, item_id: &str) -> R<ChapterData> {
                     }
                 }
             }
-            Err(e) => failure = Some(e),
-        }
-        // 当前章第一轮没拿到，补足原来的三轮重试
-        if failure.is_none() && !out.contains_key(&id) {
-            match api.fetch_chapters(&[id.clone()], &book_id, 2).await {
-                Ok(mut got) => match got.remove(&id).and_then(|x| to_data(&x)) {
-                    Some(data) => {
-                        write_cached(&id, &data);
-                        out.insert(id.clone(), data);
-                    }
-                    None => failure = Some("该章节未能获取正文".into()),
-                },
-                Err(e) => failure = Some(e),
-            }
         }
         for (k, tx) in senders {
-            let result = match (&failure, out.get(&k)) {
-                (Some(e), _) if k == id => Err(e.clone()),
+            let result = match (&current, out.get(&k)) {
                 (_, Some(d)) => Ok(d.clone()),
-                (Some(e), None) => Err(e.clone()),
-                (None, None) => Err("预取未拿到".to_string()),
+                (Err(e), None) => Err(e.clone()),
+                (Ok(_), None) => Err("预取未拿到".to_string()),
             };
             with(|c| c.inflight.remove(&k));
             let _ = tx.send(Some(result));
