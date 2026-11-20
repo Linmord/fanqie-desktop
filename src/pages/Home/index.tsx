@@ -14,13 +14,30 @@ const RANK_MOLDS = [
   { id: '1', name: '新书榜' },
 ];
 
+// 推荐页先用上次的结果秒开，后台再刷新
+const RECOMMEND_CACHE_KEY = 'fanqie.recommend';
+
+function readRecommendCache(): RecommendSection[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECOMMEND_CACHE_KEY) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
 function Recommend() {
-  const [sections, setSections] = useState<RecommendSection[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [sections, setSections] = useState<RecommendSection[]>(readRecommendCache);
+  const [loading, setLoading] = useState(sections.length === 0);
 
   useEffect(() => {
     api.recommend().then((list) => {
-      setSections(list);
+      if (list.length > 0) {
+        setSections(list);
+        try {
+          localStorage.setItem(RECOMMEND_CACHE_KEY, JSON.stringify(list));
+        } catch { /* 存不下就算了，只是少了秒开 */ }
+      }
       setLoading(false);
     });
   }, []);
