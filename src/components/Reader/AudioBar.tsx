@@ -26,14 +26,17 @@ const clock = (s: number) => {
 };
 
 /** 阅读页的听书条：番茄服务端合成的 AI 朗读，按时间轴高亮正在读的段落，读完自动接下一章 */
-export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, onClose }: {
+export default function AudioBar({ bookId, bookTitle, rootRef, start, onFollow, onRevealEl, onClose }: {
   bookId: string;
   bookTitle: string;
-  bodyRef: RefObject<HTMLDivElement>;
+  /** 阅读页容器：滚动模式在里面找 .reader-body 滚动，翻页模式在里面找 .reader-page-view 判断可见 */
+  rootRef: RefObject<HTMLDivElement>;
   /** 从哪章第几段（段评同款 idx）开始听 */
   start: { chapterId: string; para: number };
   /** 读到的章节不在章节流里时，让阅读页跳过去 */
   onFollow: (chapterId: string) => void;
+  /** 翻页模式的跟读：把这段翻到可见页；滚动模式不传，直接滚容器 */
+  onRevealEl?: (el: HTMLElement) => void;
   onClose: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(new Audio());
@@ -64,35 +67,46 @@ export default function AudioBar({ bookId, bookTitle, bodyRef, start, onFollow, 
     hlRef.current = null;
   };
 
-  /** 读者是否在跟着听：没有高亮段，或高亮段还在屏幕里 */
+  /** 滚动模式的滚动容器；翻页模式没有它，正文按栏排在一页里 */
+  const bodyOf = (root: HTMLElement) => root.querySelector<HTMLElement>('.reader-body');
+
+  /** 读者是否在跟着听：没有高亮段，或高亮段还在可见范围内 */
   const following = () => {
-    const body = bodyRef.current;
+    const root = rootRef.current;
     const el = hlRef.current;
-    if (!body || !el?.isConnected) return true;
-    const view = body.getBoundingClientRect();
+    if (!root || !el?.isConnected) return true;
+    const body = bodyOf(root);
+    const view = (body ?? root.querySelector<HTMLElement>('.reader-page-view'))?.getBoundingClientRect();
+    if (!view) return true;
     const r = el.getBoundingClientRect();
-    return r.bottom > view.top && r.top < view.bottom;
+    // 滚动模式上下判断，翻页模式左右分栏，判断横向是否露出来
+    return body
+      ? r.bottom > view.top && r.top < view.bottom
+      : r.right > view.left && r.left < view.right;
   };
 
-  /** 高亮正在读的段落；读者在跟读时把它滚到视口上部 */
+  /** 高亮正在读的段落；读者在跟读时滚到视口上部，翻页模式翻到它所在的页 */
   const highlight = (chId: string, para: number) => {
     posRef.current = { chapterId: chId, para };
-    const body = bodyRef.current;
+    const root = rootRef.current;
     const seg = useReader.getState().segments.find((g) => g.chapter.id === chId);
-    if (!body || !seg) return clearHighlight();
+    if (!root || !seg) return clearHighlight();
     const i = para === TITLE_PARA ? -1 : seg.paraIdx.indexOf(para);
-    const root = body.querySelector<HTMLElement>(`[data-seg="${CSS.escape(chId)}"]`);
+    const scope = root.querySelector<HTMLElement>(`[data-seg="${CSS.escape(chId)}"]`);
     const el = para === TITLE_PARA
-      ? root?.querySelector<HTMLElement>('.reader-chapter-title')
-      : i >= 0 ? root?.querySelector<HTMLElement>(`.reader-para[data-para="${i}"]`) : null;
+      ? scope?.querySelector<HTMLElement>('.reader-chapter-title')
+      : i >= 0 ? scope?.querySelector<HTMLElement>(`.reader-para[data-para="${i}"]`) : null;
     if (!el || el === hlRef.current) return;
     const follow = following();
-    const view = body.getBoundingClientRect();
     clearHighlight();
     el.classList.add('reader-listening');
     hlRef.current = el;
+    if (!follow) return;
+    const body = bodyOf(root);
+    if (!body) return onRevealEl?.(el);
+    const view = body.getBoundingClientRect();
     const r = el.getBoundingClientRect();
-    if (follow && (r.top < view.top + 40 || r.bottom > view.bottom - 80)) {
+    if (r.top < view.top + 40 || r.bottom > view.bottom - 80) {
       body.scrollBy({ top: r.top - view.top - body.clientHeight * 0.3, behavior: 'smooth' });
     }
   };

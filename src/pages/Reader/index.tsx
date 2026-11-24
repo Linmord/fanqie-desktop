@@ -636,12 +636,13 @@ export default function Reader() {
           <AudioBar
             bookId={bookId}
             bookTitle={bookTitle}
-            bodyRef={bodyRef}
+            rootRef={containerRef}
             start={listenFrom}
             onFollow={(id) => {
               const c = useReader.getState().chapters.find((x) => x.id === id);
               if (c) jump(c);
             }}
+            onRevealEl={paged ? (el) => pagedRef.current?.revealEl(el) : undefined}
             onClose={() => setListenFrom(null)}
           />
         )}
